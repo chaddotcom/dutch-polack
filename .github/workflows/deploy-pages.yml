@@ -26,8 +26,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # enablement: true turns Pages on (source = GitHub Actions) automatically
+      # on the first run, so no manual Settings -> Pages step is needed.
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       # The site is a single self-contained index.html at the repo root,
       # so the whole tree is the artifact.
