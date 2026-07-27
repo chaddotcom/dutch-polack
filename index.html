@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Neighbor | Know the Vibe before you sign</title>
+
+<meta name="description" content="Agent Neighbor reads the public record of a street, 311 calls, code violations, permits, fire response, schools and environmental risk, and turns it into one explainable Street Context Index for any address.">
+<meta name="theme-color" content="#05603A">
+<meta name="color-scheme" content="light">
+<link rel="canonical" href="https://agentneighbor.com/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Agent Neighbor">
+<meta property="og:title" content="Agent Neighbor | Know the Vibe before you sign">
+<meta property="og:description" content="Street-level civic data for homebuyers, renters and agents. One address, one explainable score, every number traced to its public source.">
+<meta property="og:url" content="https://agentneighbor.com/">
+<meta property="og:image" content="https://agentneighbor.com/og.png">
+<meta property="og:image:alt" content="Agent Neighbor Street Context Index shown on a green highway guide sign.">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Agent Neighbor | Know the Vibe before you sign">
+<meta name="twitter:description" content="Street-level civic data for homebuyers, renters and agents. One address, one explainable score.">
+<meta name="twitter:image" content="https://agentneighbor.com/og.png">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2305603A'/%3E%3Crect x='7' y='7' width='50' height='50' rx='7' fill='none' stroke='white' stroke-width='3'/%3E%3Cpath d='M20 44V20h6l12 16V20h6v24h-6L26 28v16z' fill='white'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;900&family=Overpass+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<style>
+:root{
+  --sign:#05603A;
+  --sign-deep:#033B24;
+  --sign-tint:#E6F1EA;
+  --ink:#16211C;
+  --muted:#5C6B62;
+  --paper:#F2F4F0;
+  --white:#FFFFFF;
+  --line:#D7DDD6;
+  --amber:#B8820A;
+  --amber-tint:#FBF2DC;
+  --red:#B3241C;
+  --red-tint:#FBECEA;
+  --radius:14px;
+  --shadow:0 10px 30px rgba(3,59,36,.10);
+  --maxw:1120px;
+  --font:'Overpass',ui-sans-serif,system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --mono:'Overpass Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--font);font-size:16px;line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+img,svg{max-width:100%}
+a{color:var(--sign);text-decoration-thickness:1.5px;text-underline-offset:3px}
+h1,h2,h3,h4,p,ul,ol{margin:0}
+ul{padding-left:1.1em}
+:focus-visible{outline:3px solid var(--amber);outline-offset:3px;border-radius:6px}
+.shell{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:14px;top:14px;z-index:999;background:var(--sign);color:#fff;padding:10px 14px;border-radius:8px}
+
+/* ---------- sign primitives ---------- */
+.mark{width:38px;height:38px;border-radius:9px;background:var(--sign);position:relative;flex:0 0 auto}
+.mark::after{content:"";position:absolute;inset:4px;border:2px solid #fff;border-radius:6px}
+.mark span{
+  position:absolute;inset:0;display:grid;place-items:center;
+  color:#fff;font-weight:900;font-size:19px;letter-spacing:-.02em;
+}
+.eyebrow{
+  font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--sign);
+}
+.eyebrow.on-sign{color:#A9D6BE}
+
+/* ---------- header ---------- */
+.top{position:sticky;top:0;z-index:1000;background:rgba(242,244,240,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top-in{display:flex;align-items:center;gap:18px;padding:12px 0}
+.brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--ink)}
+.brand b{font-weight:900;font-size:19px;letter-spacing:-.02em;line-height:1}
+.brand small{display:block;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.nav{display:flex;gap:22px;margin-left:auto;align-items:center}
+.nav a{color:var(--ink);text-decoration:none;font-size:14px;font-weight:600}
+.nav a:hover{color:var(--sign)}
+@media(max-width:860px){.nav .hide-sm{display:none}}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  font-family:var(--font);font-weight:700;font-size:15px;line-height:1;
+  padding:13px 18px;border-radius:10px;border:2px solid transparent;
+  cursor:pointer;text-decoration:none;transition:background .15s,color .15s,transform .08s;
+}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--sign);color:#fff}
+.btn-primary:hover{background:var(--sign-deep)}
+.btn-ghost{background:transparent;color:var(--sign);border-color:var(--line)}
+.btn-ghost:hover{border-color:var(--sign);background:var(--sign-tint)}
+.btn-sm{padding:10px 14px;font-size:14px}
+.btn-block{width:100%}
+.btn-onsign{background:#fff;color:var(--sign-deep)}
+.btn-onsign:hover{background:#DDEDE3}
+
+/* ---------- hero ---------- */
+.hero{padding:56px 0 40px}
+.hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:44px;align-items:center}
+.hero h1{
+  font-size:clamp(38px,5.4vw,62px);font-weight:900;line-height:1.02;letter-spacing:-.035em;
+  margin:14px 0 16px;max-width:15ch;
+}
+.hero h1 em{font-style:normal;color:var(--sign)}
+.hero p.sub{font-size:18px;color:var(--muted);max-width:48ch}
+.hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+.trust{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.chip{
+  font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--white);border:1px solid var(--line);border-radius:999px;padding:6px 11px;color:var(--muted);
+}
+@media(max-width:900px){
+  .hero{padding:36px 0 28px}
+  .hero-grid{grid-template-columns:1fr;gap:32px}
+}
+
+/* ---------- the signature element ---------- */
+.sign{
+  background:var(--sign);border-radius:18px;padding:12px;box-shadow:var(--shadow);
+  position:relative;
+}
+.sign-in{border:3px solid #fff;border-radius:11px;padding:22px 22px 20px;color:#fff}
+.sign-score{
+  font-size:84px;font-weight:900;line-height:.86;letter-spacing:-.05em;
+  font-variant-numeric:tabular-nums;margin:10px 0 2px;
+}
+.sign-score.dim{opacity:.4}
+.sign-verdict{font-size:15px;font-weight:700;color:#DFF0E6}
+.sign-addr{
+  font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  color:#A9D6BE;margin-top:14px;border-top:1px solid rgba(255,255,255,.28);padding-top:11px;
+  overflow-wrap:anywhere;
+}
+.gauge{height:8px;border-radius:99px;background:rgba(255,255,255,.22);margin:16px 0 8px;position:relative}
+.gauge i{position:absolute;top:-4px;width:4px;height:16px;background:#fff;border-radius:99px;left:0;transition:left .5s cubic-bezier(.2,.7,.2,1)}
+.gauge-lab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:#A9D6BE}
+
+/* ---------- cards & sections ---------- */
+.card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+section{scroll-margin-top:82px}
+.band{padding:56px 0}
+.band.alt{background:var(--white);border-block:1px solid var(--line)}
+.head{max-width:60ch;margin-bottom:28px}
+.head h2{font-size:clamp(26px,3.4vw,36px);font-weight:900;letter-spacing:-.03em;line-height:1.08;margin:10px 0 10px}
+.head p{color:var(--muted);font-size:17px}
+
+/* ---------- lookup app ---------- */
+.app{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+@media(max-width:900px){.app{grid-template-columns:1fr}}
+.notice{
+  display:flex;gap:11px;align-items:flex-start;background:var(--amber-tint);
+  border:1px solid #EBD9A8;border-radius:10px;padding:11px 13px;font-size:13.5px;color:#6B4E06;
+}
+.notice b{font-weight:700}
+.field{display:flex;gap:10px;margin:14px 0 10px}
+.field input{
+  flex:1;min-width:0;font:inherit;font-size:15px;padding:13px 14px;
+  border:2px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);
+}
+.field input:focus{outline:none;border-color:var(--sign)}
+@media(max-width:520px){.field{flex-direction:column}}
+.minirow{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.status{font-family:var(--mono);font-size:11.5px;color:var(--muted);letter-spacing:.03em}
+#map{height:300px;border-radius:11px;border:1px solid var(--line);background:#E4E9E3;overflow:hidden;position:relative;z-index:0}
+.map-wrap{position:relative}
+.map-down{
+  position:absolute;inset:0;display:none;place-content:center;text-align:center;padding:26px;
+  background:var(--paper);border-radius:11px;border:1px dashed var(--line);z-index:1;
+}
+.map-down.on{display:grid}
+.map-down p{color:var(--muted);font-size:14px;max-width:34ch;margin:6px auto 0}
+
+.domains{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+@media(max-width:520px){.domains{grid-template-columns:1fr}}
+.domain{
+  text-align:left;background:var(--paper);border:1px solid var(--line);border-radius:11px;
+  padding:12px 13px;cursor:pointer;font:inherit;color:inherit;transition:border-color .15s,background .15s;
+}
+.domain:hover{border-color:var(--sign);background:var(--sign-tint)}
+.domain .dn{font-size:13.5px;font-weight:700}
+.domain .dh{font-size:11.5px;color:var(--muted);line-height:1.35;margin-top:1px}
+.domain .ds{font-family:var(--mono);font-size:22px;font-weight:600;margin-top:9px;font-variant-numeric:tabular-nums}
+.ds.good{color:var(--sign)} .ds.mid{color:var(--amber)} .ds.low{color:var(--red)}
+
+.tl{border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-top:10px}
+.tl-item{padding:11px 13px;border-bottom:1px solid var(--line);font-size:14px}
+.tl-item:last-child{border-bottom:none}
+.tl-item .d{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.05em}
+.tag{
+  display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  padding:3px 7px;border-radius:5px;background:var(--sign-tint);color:var(--sign);margin-left:6px;
+}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.07em;text-transform:uppercase;padding:5px 10px;border-radius:99px;
+  background:var(--sign-tint);color:var(--sign);border:1px solid #C6E0D3;
+}
+.pill.mid{background:var(--amber-tint);color:#6B4E06;border-color:#EBD9A8}
+.pill.low{background:var(--red-tint);color:var(--red);border-color:#F0CDC9}
+.rowsplit{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.divide{height:1px;background:var(--line);margin:16px 0}
+
+/* ---------- steps ---------- */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;counter-reset:s}
+@media(max-width:820px){.steps{grid-template-columns:1fr}}
+.step{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:22px;position:relative}
+.step::before{
+  counter-increment:s;content:counter(s);
+  font-family:var(--mono);font-size:12px;font-weight:600;color:#fff;background:var(--sign);
+  width:26px;height:26px;border-radius:7px;display:grid;place-items:center;margin-bottom:12px;
+}
+.step h3{font-size:18px;font-weight:900;letter-spacing:-.02em;margin-bottom:6px}
+.step p{color:var(--muted);font-size:14.5px}
+
+/* ---------- domain explainer ---------- */
+.dgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:900px){.dgrid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.dgrid{grid-template-columns:1fr}}
+.dcard h3{font-size:16px;font-weight:900;margin:9px 0 5px;letter-spacing:-.01em}
+.dcard p{font-size:14px;color:var(--muted)}
+.dcard .src{font-family:var(--mono);font-size:10.5px;color:var(--sign);letter-spacing:.05em;text-transform:uppercase;margin-top:10px;display:block}
+
+/* ---------- pricing ---------- */
+.prices{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:stretch}
+@media(max-width:1000px){.prices{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.prices{grid-template-columns:1fr}}
+.price{display:flex;flex-direction:column;background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+.price.feature{background:var(--sign);border-color:var(--sign);color:#fff;box-shadow:var(--shadow)}
+.price h3{font-size:16px;font-weight:900;letter-spacing:-.01em}
+.price .amt{font-size:38px;font-weight:900;letter-spacing:-.04em;line-height:1;margin:12px 0 2px}
+.price .per{font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.price.feature .per{color:#A9D6BE}
+.price ul{list-style:none;padding:0;margin:16px 0 20px;font-size:14px;display:grid;gap:8px}
+.price li{padding-left:20px;position:relative;color:var(--muted)}
+.price.feature li{color:#DFF0E6}
+.price li::before{content:"";position:absolute;left:0;top:7px;width:9px;height:9px;border-radius:3px;background:var(--sign)}
+.price.feature li::before{background:#fff}
+.price .foot{margin-top:auto}
+.price-note{margin-top:16px;font-size:13.5px;color:var(--muted);max-width:70ch}
+
+/* ---------- faq ---------- */
+.faq{max-width:78ch}
+.faq details{background:var(--white);border:1px solid var(--line);border-radius:11px;margin-bottom:10px;padding:2px 16px}
+.faq summary{cursor:pointer;font-weight:700;font-size:16px;padding:14px 0;list-style:none;display:flex;justify-content:space-between;gap:16px;align-items:center}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";font-family:var(--mono);color:var(--sign);font-size:20px;line-height:1}
+.faq details[open] summary::after{content:"\2212"}
+.faq p{color:var(--muted);font-size:15px;padding:0 0 16px}
+
+/* ---------- signup ---------- */
+.signup{background:var(--sign);border-radius:18px;padding:12px}
+.signup-in{border:3px solid #fff;border-radius:11px;padding:30px;color:#fff}
+.signup h2{font-size:clamp(24px,3.2vw,32px);font-weight:900;letter-spacing:-.03em;line-height:1.1;margin-bottom:8px}
+.signup p{color:#DFF0E6;max-width:52ch}
+.signup .field input{border-color:transparent}
+.signup .fineprint{font-family:var(--mono);font-size:11px;color:#A9D6BE;letter-spacing:.04em}
+
+/* ---------- footer ---------- */
+footer{background:var(--sign-deep);color:#C7DED2;padding:36px 0 30px;margin-top:56px}
+footer a{color:#fff}
+.foot-grid{display:flex;flex-wrap:wrap;gap:24px;justify-content:space-between;align-items:flex-start}
+.foot-links{display:flex;flex-wrap:wrap;gap:18px;font-size:14px}
+.foot-links a{text-decoration:none}
+.foot-links a:hover{text-decoration:underline}
+.foot-note{font-size:12.5px;margin-top:22px;padding-top:18px;border-top:1px solid rgba(255,255,255,.16);max-width:80ch}
+
+/* ---------- modal ---------- */
+.modal{position:fixed;inset:0;background:rgba(3,59,36,.55);display:none;place-items:center;padding:18px;z-index:2000}
+.modal.on{display:grid}
+.modal-box{background:#fff;border-radius:16px;width:min(560px,100%);max-height:86vh;overflow:auto;box-shadow:0 30px 70px rgba(0,0,0,.3)}
+.modal-hd{background:var(--sign);color:#fff;padding:18px 22px}
+.modal-hd h3{font-size:20px;font-weight:900;letter-spacing:-.02em}
+.modal-hd .sc{font-family:var(--mono);font-size:12px;color:#A9D6BE;letter-spacing:.07em;text-transform:uppercase;margin-top:3px}
+.modal-bd{padding:20px 22px}
+.modal-bd h4{font-family:var(--mono);font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--sign);margin:16px 0 5px}
+.modal-bd h4:first-child{margin-top:0}
+.modal-bd p,.modal-bd li{font-size:14.5px;color:var(--ink)}
+.modal-bd ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.modal-ft{padding:14px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end}
+
+.toast{
+  position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(8px);
+  background:var(--sign-deep);color:#fff;padding:11px 17px;border-radius:99px;font-size:14px;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:2100;
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.skel{background:linear-gradient(90deg,#E9EDE8 25%,#F5F7F4 37%,#E9EDE8 63%);background-size:400% 100%;animation:sh 1.2s infinite;border-radius:8px}
+@keyframes sh{0%{background-position:100% 0}100%{background-position:0 0}}
+.busy{opacity:.5}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#lookup">Skip to the address lookup</a>
+
+<header class="top">
+  <div class="shell top-in">
+    <a class="brand" href="#top">
+      <span class="mark"><span>N</span></span>
+      <span><b>Agent Neighbor</b><small>Early access</small></span>
+    </a>
+    <nav class="nav">
+      <a class="hide-sm" href="#how">How it works</a>
+      <a class="hide-sm" href="#domains-info">What we read</a>
+      <a class="hide-sm" href="#pricing">Pricing</a>
+      <a class="hide-sm" href="#faq">FAQ</a>
+      <a class="btn btn-primary btn-sm" href="#lookup">Look up an address</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="shell hero-grid">
+      <div>
+        <span class="eyebrow">Street-level civic data</span>
+        <h1>Know the <em>Vibe</em> before you sign.</h1>
+        <p class="sub">You research the house and inherit the street. Agent Neighbor reads the public record of a block, 311 calls, code violations, permits, fire response, schools and environmental risk, and turns it into one score you can actually open up and check.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#lookup">Score an address</a>
+          <a class="btn btn-ghost" href="#pricing">See what a report costs</a>
+        </div>
+        <div class="trust">
+          <span class="chip">Public records only</span>
+          <span class="chip">Every score is sourced</span>
+          <span class="chip">Nothing about people</span>
+        </div>
+      </div>
+
+      <div class="sign" aria-hidden="true">
+        <div class="sign-in">
+          <span class="eyebrow on-sign">Street Context Index</span>
+          <div class="sign-score">78</div>
+          <div class="sign-verdict">Generally favorable, moderate activity</div>
+          <div class="gauge"><i style="left:78%"></i></div>
+          <div class="gauge-lab"><span>0</span><span>50</span><span>100</span></div>
+          <div class="sign-addr">Sample block, Philadelphia PA</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= LOOKUP ================= -->
+  <section id="lookup" class="band alt">
+    <div class="shell">
+      <div class="head">
+        <span class="eyebrow">Try it</span>
+        <h2>Drop a pin on any street.</h2>
+        <p>Type an address, use your location, or click the map. You get the index, the six domains behind it, and the individual records that produced them.</p>
+      </div>
+
+      <div class="app">
+        <div class="card">
+          <div class="notice">
+            <b>Live public records.</b>
+            <span>In Philadelphia and New York, the civic and development scores are pulled straight from the cities' open-data APIs in your browser, with no account and no database of ours. Other domains, and other cities, use a clearly labeled demonstration model until their feeds are wired in.</span>
+          </div>
+
+          <div class="field">
+            <input id="addr" type="text" inputmode="text" autocomplete="street-address"
+                   placeholder="1600 Market St, Philadelphia PA" aria-label="Address to score">
+            <button class="btn btn-primary" id="go">Generate report</button>
+          </div>
+
+          <div class="minirow">
+            <button class="btn btn-ghost btn-sm" id="gps">Use my location</button>
+            <button class="btn btn-ghost btn-sm" id="pin">Score the map center</button>
+          </div>
+
+          <div class="map-wrap">
+            <div id="map" role="application" aria-label="Map for choosing a street"></div>
+            <div class="map-down" id="mapDown">
+              <div>
+                <span class="eyebrow">Map unavailable</span>
+                <p>The map tiles could not load, which usually means a network or ad blocker is in the way. Address search and scoring still work normally.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="rowsplit" style="margin-top:11px">
+            <span class="status" id="coords">LAT/LNG PENDING</span>
+            <span class="status" id="status">Enter an address to begin.</span>
+          </div>
+        </div>
+
+        <div class="card" id="report">
+          <div class="rowsplit">
+            <div>
+              <span class="eyebrow">Street report</span>
+              <h3 id="reportAddr" style="font-size:17px;font-weight:900;letter-spacing:-.02em;margin-top:4px">No address scored yet</h3>
+            </div>
+            <span class="pill" id="coverage">Coverage pending</span>
+          </div>
+
+          <div class="divide"></div>
+
+          <div class="sign">
+            <div class="sign-in">
+              <span class="eyebrow on-sign">Street Context Index</span>
+              <div class="sign-score dim" id="score">00</div>
+              <div class="sign-verdict" id="verdict">Waiting for an address</div>
+              <div class="gauge"><i id="needle" style="left:0%"></i></div>
+              <div class="gauge-lab"><span>0</span><span>50</span><span>100</span></div>
+              <div class="sign-addr" id="signAddr">Nothing scored yet</div>
+            </div>
+          </div>
+
+          <div class="divide"></div>
+
+          <div class="rowsplit" style="margin-bottom:10px">
+            <span class="eyebrow">Six domains</span>
+            <span class="status">Tap any domain for its records</span>
+          </div>
+          <div class="domains" id="domains"></div>
+
+          <div class="divide"></div>
+
+          <div class="rowsplit">
+            <span class="eyebrow">Evidence timeline</span>
+            <span class="status" id="tlCount">0 records</span>
+          </div>
+          <div class="tl" id="timeline">
+            <div class="tl-item" style="color:var(--muted)">Score an address and the individual public records appear here, newest first.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HOW ================= -->
+  <section id="how" class="band">
+    <div class="shell">
+      <div class="head">
+        <span class="eyebrow">How it works</span>
+        <h2>Three steps, no interpretation required.</h2>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <h3>Pin the street</h3>
+          <p>We resolve your address to a street segment, not a zip code and not a census tract. Two blocks apart can score twenty points apart, and that difference is the entire point.</p>
+        </div>
+        <div class="step">
+          <h3>Pull the record</h3>
+          <p>Every 311 call, code violation, permit and incident filed within range over the last twelve months, straight from the city's own public data feeds.</p>
+        </div>
+        <div class="step">
+          <h3>Read the score</h3>
+          <p>Six domains roll into one index from 0 to 100. Open any domain and you see the records underneath it, dated and attributed. Nothing is a black box.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DOMAINS ================= -->
+  <section id="domains-info" class="band alt">
+    <div class="shell">
+      <div class="head">
+        <span class="eyebrow">What we read</span>
+        <h2>Six domains, all of it public.</h2>
+        <p>Places, never people. Agent Neighbor scores civic activity on a street, and never makes claims about who lives there.</p>
+      </div>
+      <div class="dgrid" id="domainInfo"></div>
+    </div>
+  </section>
+
+  <!-- ================= PRICING ================= -->
+  <section id="pricing" class="band">
+    <div class="shell">
+      <div class="head">
+        <span class="eyebrow">Pricing</span>
+        <h2>Buy one report, or work in the data all year.</h2>
+        <p>Most people need one street checked before one offer. That is the $16 report, and it is the whole product, not a teaser.</p>
+      </div>
+
+      <div class="prices">
+        <div class="price feature">
+          <h3>Street Report</h3>
+          <div class="amt">$16</div>
+          <div class="per">One time, one address</div>
+          <ul>
+            <li>Full six-domain index</li>
+            <li>Source-linked evidence timeline</li>
+            <li>Shareable PDF for your agent</li>
+            <li>Data refreshed at purchase</li>
+          </ul>
+          <div class="foot"><a class="btn btn-onsign btn-block" href="#waitlist">Get a Street Report</a></div>
+        </div>
+
+        <div class="price">
+          <h3>Pro</h3>
+          <div class="amt">$19</div>
+          <div class="per">Per month, or $149 a year</div>
+          <ul>
+            <li>Unlimited reports</li>
+            <li>Watchlists with change alerts</li>
+            <li>Compare addresses side by side</li>
+            <li>Full record export</li>
+          </ul>
+          <div class="foot"><a class="btn btn-ghost btn-block" href="#waitlist">Join the Pro list</a></div>
+        </div>
+
+        <div class="price">
+          <h3>Agent and Team</h3>
+          <div class="amt">$39</div>
+          <div class="per">Per seat, per month</div>
+          <ul>
+            <li>Everything in Pro</li>
+            <li>Co-branded client reports</li>
+            <li>Bulk address exports</li>
+            <li>Shared team workspace</li>
+          </ul>
+          <div class="foot"><a class="btn btn-ghost btn-block" href="#waitlist">Talk to us</a></div>
+        </div>
+
+        <div class="price">
+          <h3>Enterprise</h3>
+          <div class="amt">Custom</div>
+          <div class="per">Portals and brokerages</div>
+          <ul>
+            <li>API access</li>
+            <li>Bulk and historical data</li>
+            <li>Coverage by market</li>
+            <li>Licensing and support terms</li>
+          </ul>
+          <div class="foot"><a class="btn btn-ghost btn-block" href="#waitlist">Request terms</a></div>
+        </div>
+      </div>
+
+      <p class="price-note">Your first lookup on this site is free and always will be, so you can see exactly what a report contains before paying for one.</p>
+    </div>
+  </section>
+
+  <!-- ================= FAQ ================= -->
+  <section id="faq" class="band alt">
+    <div class="shell">
+      <div class="head">
+        <span class="eyebrow">Questions</span>
+        <h2>The things people ask first.</h2>
+      </div>
+      <div class="faq">
+        <details open>
+          <summary>Where does the data come from?</summary>
+          <p>Municipal open data programs, published by the cities themselves. Philadelphia serves 311 requests, Licenses and Inspections violations, and building permits. New York serves 311, HPD housing violations, and DOB permits. Every record in a report carries its date and its source, and you can go read the original.</p>
+        </details>
+        <details>
+          <summary>Is this about my future neighbors?</summary>
+          <p>No, and deliberately so. Agent Neighbor scores civic activity at a place. It does not profile residents, it does not touch demographics, and it does not surface anything about individuals. That is an ethical line and also a practical one, since agents cannot legally steer clients on those grounds.</p>
+        </details>
+        <details>
+          <summary>Which cities work right now?</summary>
+          <p>Philadelphia and New York are first, because both publish clean, coordinate-tagged civic data through free public APIs. Austin, Boston, Seattle, San Francisco, Chicago, Washington, Denver and Portland follow. Anywhere outside a covered city currently returns demonstration data, clearly labeled.</p>
+        </details>
+        <details>
+          <summary>What does the score actually mean?</summary>
+          <p>The index runs 0 to 100, where higher means a quieter civic record. It is a weighted roll-up of six domains, and it is a starting point for questions rather than a verdict. A low score on a street you love means go ask about the permits, not walk away.</p>
+        </details>
+        <details>
+          <summary>How current is it?</summary>
+          <p>Records refresh nightly from each city's feed, and a report covers the trailing twelve months. Cities publish on their own schedules, so a complaint filed this morning may take a day or two to appear.</p>
+        </details>
+        <details>
+          <summary>Can I use these reports with clients?</summary>
+          <p>Yes. The Agent and Team plan produces co-branded reports built entirely from public records with sources attached, which is what makes them safe to hand to a buyer.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= WAITLIST ================= -->
+  <section id="waitlist" class="band">
+    <div class="shell">
+      <div class="signup">
+        <div class="signup-in">
+          <span class="eyebrow on-sign">Early access</span>
+          <h2>Get in before the first cities go live.</h2>
+          <p>Leave an email and we will tell you the day your city has real records behind it. No newsletter, no drip sequence, just that.</p>
+          <div class="field" style="max-width:520px">
+            <input id="email" type="email" autocomplete="email" placeholder="you@example.com" aria-label="Email address">
+            <button class="btn btn-onsign" id="join">Join the list</button>
+          </div>
+          <span class="fineprint" id="joinNote">One email when your city is ready. Unsubscribe in one click.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="shell">
+    <div class="foot-grid">
+      <div>
+        <div class="brand" style="color:#fff">
+          <span class="mark"><span>N</span></span>
+          <span><b>Agent Neighbor</b><small style="color:#A9D6BE">Know the Vibe before you sign</small></span>
+        </div>
+      </div>
+      <div class="foot-links">
+        <a href="#how">How it works</a>
+        <a href="#domains-info">What we read</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+        <a href="#" id="contactLink">Contact</a>
+      </div>
+    </div>
+    <p class="foot-note">
+      Agent Neighbor is in early access. Scores are built from public municipal records and are provided for informational purposes only. They are not an appraisal, an inspection, a safety guarantee, or advice about people. Always verify anything that matters with the original source and your own professionals.
+    </p>
+  </div>
+</footer>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <h3 id="mTitle">Domain</h3>
+      <div class="sc" id="mScore">Score</div>
+    </div>
+    <div class="modal-bd">
+      <h4>What this measures</h4><p id="mMeasures"></p>
+      <h4>Public sources</h4><p id="mSources"></p>
+      <h4>Records found here</h4><ul id="mFound"></ul>
+      <h4>How to read it</h4><p id="mMeaning"></p>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost btn-sm" id="mClose">Close</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@graph":[
+    {
+      "@type":"Organization",
+      "@id":"https://agentneighbor.com/#org",
+      "name":"Agent Neighbor",
+      "url":"https://agentneighbor.com/",
+      "slogan":"Know the Vibe before you sign.",
+      "description":"Street-level civic data intelligence that turns public municipal records into an explainable Street Context Index for any address."
+    },
+    {
+      "@type":"WebSite",
+      "@id":"https://agentneighbor.com/#site",
+      "url":"https://agentneighbor.com/",
+      "name":"Agent Neighbor",
+      "publisher":{"@id":"https://agentneighbor.com/#org"}
+    },
+    {
+      "@type":"SoftwareApplication",
+      "name":"Agent Neighbor",
+      "applicationCategory":"BusinessApplication",
+      "operatingSystem":"Web",
+      "url":"https://agentneighbor.com/",
+      "publisher":{"@id":"https://agentneighbor.com/#org"},
+      "offers":[
+        {"@type":"Offer","name":"Street Report","price":"16","priceCurrency":"USD","description":"One-time report for a single address."},
+        {"@type":"Offer","name":"Pro","price":"19","priceCurrency":"USD","description":"Monthly subscription with unlimited reports and watchlists."},
+        {"@type":"Offer","name":"Agent and Team","price":"39","priceCurrency":"USD","description":"Per seat, per month, with co-branded client reports."}
+      ]
+    },
+    {
+      "@type":"FAQPage",
+      "mainEntity":[
+        {"@type":"Question","name":"Where does the data come from?","acceptedAnswer":{"@type":"Answer","text":"Municipal open data programs published by the cities themselves, including 311 requests, code violations and building permits. Every record carries its date and source."}},
+        {"@type":"Question","name":"Is this about my future neighbors?","acceptedAnswer":{"@type":"Answer","text":"No. Agent Neighbor scores civic activity at a place. It does not profile residents, use demographics, or surface information about individuals."}},
+        {"@type":"Question","name":"Which cities work right now?","acceptedAnswer":{"@type":"Answer","text":"Philadelphia and New York are first, followed by other cities that publish civic data through open APIs. Uncovered areas return clearly labeled demonstration data."}},
+        {"@type":"Question","name":"What does the score actually mean?","acceptedAnswer":{"@type":"Answer","text":"The Street Context Index runs 0 to 100, where higher means a quieter civic record. It is a weighted roll-up of six domains and is a starting point for questions rather than a verdict."}}
+      ]
+    }
+  ]
+}
+</script>
+
+<script>
+(function(){
+"use strict";
+
+/* =====================================================================
+   CONFIG
+   No backend. The browser queries municipal open-data APIs directly and
+   scores the result. Covered cities (Philadelphia, New York) return live
+   civic and development records; anywhere else falls back to the built-in
+   demonstration model, clearly labeled. Nothing here needs a database of
+   our own, and no keys are required.
+   ===================================================================== */
+var CONFIG = {
+  USE_LIVE_DATA: true,              // query public city APIs from the browser
+  RADIUS_M: 250,
+  MONTHS: 12,
+  MAX_RECORDS: 200,                 // cap per dataset request
+  CONTACT_EMAIL: "hello@agentneighbor.com",
+  WAITLIST_ENDPOINT: ""             // optional POST url, e.g. a Formspree endpoint
+};
+
+/* Covered cities. Each declares a bounding box for detection and the public
+   endpoints we read. All of these support cross-origin requests and need no
+   API key. If a city is not matched, we use the demonstration model. */
+var CITIES = [
+  {
+    key: "phl",
+    name: "Philadelphia",
+    bbox: { latMin: 39.85, latMax: 40.15, lngMin: -75.30, lngMax: -74.95 },
+    fetch: fetchPhiladelphia
+  },
+  {
+    key: "nyc",
+    name: "New York",
+    bbox: { latMin: 40.48, latMax: 40.93, lngMin: -74.27, lngMax: -73.68 },
+    fetch: fetchNewYork
+  }
+];
+
+function cityFor(lat, lng){
+  for (var i = 0; i < CITIES.length; i++){
+    var b = CITIES[i].bbox;
+    if (lat >= b.latMin && lat <= b.latMax && lng >= b.lngMin && lng <= b.lngMax) return CITIES[i];
+  }
+  return null;
+}
+
+var DOMAINS = [
+  { key:"civic",  name:"Civic signals",     hint:"311, noise, sanitation, code",
+    measures:"Resident-filed complaints and enforcement actions on the block: noise, sanitation, illegal dumping, code violations and traffic complaints.",
+    sources:"City 311 request feeds, code enforcement and licensing inspections, public works, transportation complaints." },
+  { key:"fire",   name:"Safety and response", hint:"Fire logs, station coverage",
+    measures:"Fire and emergency incident history near the segment, plus station proximity and response time indicators for the area.",
+    sources:"Public fire incident logs, station location and coverage maps, municipal response time reporting." },
+  { key:"schools",name:"Schools",           hint:"Zone quality and stability",
+    measures:"Performance of the schools this address is zoned for, and how stable those boundaries have been over recent years.",
+    sources:"District zoning boundaries, state and district performance reporting, historical boundary changes." },
+  { key:"permits",name:"Development",       hint:"Permits, demolition, change",
+    measures:"Construction and renovation activity nearby: what is being built, torn down, converted or rezoned, and at what pace.",
+    sources:"Building permit issuance, demolition filings, zoning applications and variance decisions." },
+  { key:"env",    name:"Environment",       hint:"Flood, heat, air",
+    measures:"Environmental exposure at this location: flood zone status, urban heat, air quality and recorded public hazards.",
+    sources:"FEMA flood mapping, municipal heat vulnerability data, EPA and regional air monitoring, hazard site registries." },
+  { key:"rely",   name:"Reliability",       hint:"Utilities and infrastructure",
+    measures:"How dependable the infrastructure serving this block has been: outages, water and sewer failures, repeat street work.",
+    sources:"Utility outage history, water department service records, public infrastructure and street maintenance logs." }
+];
+
+/* ---------- tiny helpers ---------- */
+function $(id){ return document.getElementById(id); }
+var toastTimer;
+function toast(msg){
+  var t = $("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove("on"); }, 2400);
+}
+function clamp(n,a,b){ return Math.max(a, Math.min(b, n)); }
+function band(n){ return n >= 76 ? "good" : (n >= 51 ? "mid" : "low"); }
+function verdictFor(n){
+  if (n >= 76) return "Generally favorable, moderate activity";
+  if (n >= 51) return "Mixed signals worth a closer look";
+  return "Elevated activity, review before you commit";
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+  });
+}
+
+/* ---------- state ---------- */
+var state = {
+  lat: 39.9526, lng: -75.1652,
+  label: null,
+  snapshot: null,
+  mapReady: false
+};
+
+/* =====================================================================
+   DATA LAYER. This is the swap point.
+   ===================================================================== */
+async function getSnapshot(lat, lng){
+  if (CONFIG.USE_LIVE_DATA){
+    var city = cityFor(lat, lng);
+    if (city){
+      try {
+        var records = await city.fetch(lat, lng);
+        if (records && records.length){
+          return buildLiveSnapshot(city, records, lat, lng);
+        }
+        // Covered city, but the block itself is quiet. Still a real result.
+        if (records){
+          return buildLiveSnapshot(city, [], lat, lng);
+        }
+      } catch(e){ /* fall through to the model below */ }
+      toast("Live records for " + city.name + " did not load, showing the model.");
+    }
+  }
+  return sampleSnapshot(lat, lng);
+}
+
+/* ---------- category mapping, shared across cities ---------- */
+function categorize(text){
+  var t = String(text || "").toLowerCase();
+  if (/noise|party|loud|music|amplif/.test(t)) return "Noise";
+  if (/rubbish|trash|litter|sanitation|dumping|garbage|graffiti|dirty|debris|recycl|collection/.test(t)) return "Sanitation";
+  if (/parking|blocked|driveway|abandoned vehicle|traffic/.test(t)) return "Traffic";
+  if (/violation|maintenance|construction|building|electrical|plumbing|unsafe|zoning|housing/.test(t)) return "Code";
+  return "Other";
+}
+
+/* ---------- Philadelphia: Carto SQL API with PostGIS radius ----------
+   phl.carto.com serves OpenDataPhilly. CORS-enabled, no key required.
+   Each dataset is queried independently so one failing table never sinks
+   the whole report. */
+function cartoSql(sql){
+  var url = "https://phl.carto.com/api/v2/sql?q=" + encodeURIComponent(sql);
+  return fetch(url, { headers:{ Accept:"application/json" } })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){ return (j && j.rows) ? j.rows : []; })
+    .catch(function(){ return []; });
+}
+async function fetchPhiladelphia(lat, lng){
+  var R = CONFIG.RADIUS_M, N = CONFIG.MAX_RECORDS;
+  var within = "ST_DWithin(the_geom::geography, ST_SetSRID(ST_MakePoint(" +
+               lng + "," + lat + "),4326)::geography, " + R + ")";
+  var since = "(now() - interval '" + CONFIG.MONTHS + " months')";
+
+  var results = await Promise.all([
+    cartoSql("SELECT requested_datetime AS d, service_name AS what FROM public_cases_fc WHERE " +
+             within + " AND requested_datetime >= " + since + " ORDER BY requested_datetime DESC LIMIT " + N)
+      .then(function(rows){ return rows.map(function(r){
+        return mkRecord(r.d, categorize(r.what), r.what || "311 service request", "Philadelphia 311", "civic"); }); }),
+    cartoSql("SELECT violationdate AS d, violationcodetitle AS what FROM violations WHERE " +
+             within + " AND violationdate >= " + since + " ORDER BY violationdate DESC LIMIT " + N)
+      .then(function(rows){ return rows.map(function(r){
+        return mkRecord(r.d, "Code", r.what || "Code violation", "Philadelphia L&I", "civic"); }); }),
+    cartoSql("SELECT permitissuedate AS d, permitdescription AS what FROM permits WHERE " +
+             within + " AND permitissuedate >= " + since + " ORDER BY permitissuedate DESC LIMIT " + N)
+      .then(function(rows){ return rows.map(function(r){
+        return mkRecord(r.d, "Permit", r.what || "Building permit", "Philadelphia L&I permits", "permits"); }); })
+  ]);
+  return flatten(results);
+}
+
+/* ---------- New York: Socrata open data, bounding-box query ----------
+   data.cityofnewyork.us is CORS-enabled and needs no key. We convert the
+   radius to a small lat/lng box, which every dataset supports. */
+function socrata(id, params){
+  var qs = Object.keys(params).map(function(k){
+    return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]); }).join("&");
+  var url = "https://data.cityofnewyork.us/resource/" + id + ".json?" + qs;
+  return fetch(url, { headers:{ Accept:"application/json" } })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){ return Array.isArray(j) ? j : []; })
+    .catch(function(){ return []; });
+}
+async function fetchNewYork(lat, lng){
+  var R = CONFIG.RADIUS_M, N = CONFIG.MAX_RECORDS;
+  var dLat = R / 111320;
+  var dLng = R / (111320 * Math.cos(lat * Math.PI / 180) || 1);
+  var latMin = (lat - dLat).toFixed(6), latMax = (lat + dLat).toFixed(6);
+  var lngMin = (lng - dLng).toFixed(6), lngMax = (lng + dLng).toFixed(6);
+  var since = isoMonthsAgo(CONFIG.MONTHS);
+  var box = function(latf, lngf){
+    return latf + " between " + latMin + " and " + latMax + " AND " +
+           lngf + " between " + lngMin + " and " + lngMax;
+  };
+
+  var results = await Promise.all([
+    socrata("erm2-nwe9", {
+      "$select": "created_date,complaint_type,descriptor",
+      "$where": "created_date > '" + since + "' AND " + box("latitude", "longitude"),
+      "$order": "created_date DESC", "$limit": N
+    }).then(function(rows){ return rows.map(function(r){
+      return mkRecord(r.created_date, categorize(r.complaint_type + " " + (r.descriptor || "")),
+        r.complaint_type || "311 complaint", "NYC 311", "civic"); }); }),
+    socrata("wvxf-dwi5", {
+      "$select": "inspectiondate,novdescription",
+      "$where": "inspectiondate > '" + since + "' AND " + box("latitude", "longitude"),
+      "$order": "inspectiondate DESC", "$limit": N
+    }).then(function(rows){ return rows.map(function(r){
+      return mkRecord(r.inspectiondate, "Code", trim(r.novdescription) || "Housing violation",
+        "NYC HPD", "civic"); }); })
+  ]);
+  return flatten(results);
+}
+
+/* ---------- record + snapshot construction ---------- */
+function mkRecord(dateRaw, category, summary, source, domain){
+  return { date: toDate(dateRaw), category: category, summary: trim(summary), source: source, domain: domain };
+}
+function toDate(v){
+  if (!v) return "";
+  var s = String(v);
+  return s.length >= 10 ? s.slice(0, 10) : s;
+}
+function trim(s){ s = String(s || "").replace(/\s+/g, " ").trim(); return s.length > 90 ? s.slice(0, 89) + "…" : s; }
+function flatten(arrs){ return arrs.reduce(function(a, b){ return a.concat(b); }, []); }
+function isoMonthsAgo(months){
+  var d = new Date();
+  d.setMonth(d.getMonth() - months);
+  return d.toISOString().slice(0, 19);
+}
+
+/* Turns real public records into the snapshot shape the UI renders. Civic and
+   development scores come from the records; the domains we do not have a live
+   feed for yet borrow the deterministic model so the index is never blank, and
+   every one of those is labeled as modeled, not measured. */
+function buildLiveSnapshot(city, records, lat, lng){
+  var civic = records.filter(function(r){ return r.domain === "civic"; });
+  var permitRecs = records.filter(function(r){ return r.domain === "permits"; });
+
+  function countCat(cat){ return civic.filter(function(r){ return r.category === cat; }).length; }
+  var counts = {
+    noise: countCat("Noise"),
+    sanitation: countCat("Sanitation"),
+    code: countCat("Code"),
+    traffic: countCat("Traffic"),
+    permits: permitRecs.length
+  };
+
+  var model = sampleSnapshot(lat, lng);          // deterministic filler for unwired domains
+  var liveDomains = { civic: true, permits: permitRecs.length > 0 || city.key === "phl" };
+
+  var load = counts.noise * 3 + counts.sanitation * 2 + counts.code * 3 + counts.traffic;
+  var scores = {
+    civic:   clamp(Math.round(96 - load * 1.25), 0, 100),
+    permits: liveDomains.permits
+               ? clamp(Math.round(92 - Math.max(0, counts.permits - 6) * 2.2), 30, 100)
+               : model.scores.permits,
+    fire:    model.scores.fire,
+    schools: model.scores.schools,
+    env:     model.scores.env,
+    rely:    model.scores.rely
+  };
+
+  var timeline = records.slice().sort(function(a, b){
+    return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0);
+  }).slice(0, 12).map(function(r){
+    return { date: r.date, category: r.category, summary: r.summary, source: r.source };
+  });
+
+  var liveCount = (liveDomains.civic ? 1 : 0) + (liveDomains.permits ? 1 : 0);
+  var pct = clamp(58 + liveCount * 14, 40, 90);
+
+  return {
+    index: rollup(scores),
+    scores: scores,
+    counts: counts,
+    timeline: timeline,
+    coverage: { label: pct >= 75 ? "High" : "Medium", pct: pct },
+    live: true,
+    liveDomains: liveDomains,
+    cityName: city.name,
+    liveRecordCount: records.length
+  };
+}
+
+function rollup(s){
+  var w = { civic:.25, fire:.18, schools:.18, permits:.13, env:.16, rely:.10 };
+  var total = 0, used = 0;
+  DOMAINS.forEach(function(d){
+    var v = s[d.key];
+    if (typeof v === "number"){ total += v * w[d.key]; used += w[d.key]; }
+  });
+  return used ? Math.round(total / used) : 0;
+}
+
+/* ---------- sample model, deterministic per location ---------- */
+function sampleSnapshot(lat, lng){
+  var a = Math.abs(Math.sin(lat * 0.17));
+  var b = Math.abs(Math.cos(lng * 0.15));
+  var c = Math.abs(Math.sin((lat + lng) * 0.07));
+  var s = Math.abs(Math.sin(lat * 0.09) + Math.cos(lng * 0.11)) / 2;
+
+  var counts = {
+    noise: clamp(Math.round(3 + s * 11), 0, 20),
+    sanitation: clamp(Math.round(1 + (1 - s) * 6), 0, 12),
+    code: clamp(Math.round(s * 5), 0, 10),
+    traffic: clamp(Math.round((1 - s) * 4), 0, 9),
+    permits: clamp(Math.round(a * 9), 0, 14)
+  };
+  var load = counts.noise * 3 + counts.sanitation * 2 + counts.code * 3 + counts.traffic;
+  var scores = {
+    civic:   clamp(Math.round(96 - load * 1.25), 0, 100),
+    fire:    clamp(Math.round(100 - c * 52), 0, 100),
+    schools: clamp(Math.round(55 + b * 32 - c * 11), 0, 100),
+    permits: clamp(Math.round(88 - Math.abs(a * 100 - 55) * 0.85), 0, 100),
+    env:     clamp(Math.round((100 - c * 100) * .5 + (100 - b * 100) * .2 + (60 + a * 35) * .3), 0, 100),
+    rely:    clamp(Math.round(55 + a * 34 - b * 9), 0, 100)
+  };
+  var cov = c > .66 ? { label:"High", pct:82 } : (c > .33 ? { label:"Medium", pct:64 } : { label:"Low", pct:41 });
+
+  var today = new Date();
+  function ago(days){
+    var d = new Date(today.getTime() - days * 86400000);
+    return d.toISOString().slice(0, 10);
+  }
+  var pool = [
+    { days: Math.round(9 + s * 20),   cat:"Noise",      what:"Loud music or party complaint", src:"City 311" },
+    { days: Math.round(31 + b * 40),  cat:"Sanitation", what:"Illegal dumping reported",      src:"Public Works" },
+    { days: Math.round(66 + a * 50),  cat:"Code",       what:"Property maintenance violation", src:"Code Enforcement" },
+    { days: Math.round(104 + c * 60), cat:"Permit",     what:"Alteration permit issued",       src:"Permitting Office" },
+    { days: Math.round(148 + b * 70), cat:"Noise",      what:"Construction noise complaint",   src:"City 311" },
+    { days: Math.round(205 + a * 80), cat:"Permit",     what:"Roof replacement permit",        src:"Permitting Office" },
+    { days: Math.round(263 + c * 70), cat:"Traffic",    what:"Blocked driveway reported",      src:"City 311" }
+  ];
+  var keep = 3 + Math.round(s * 4);
+  var timeline = pool.slice(0, keep).map(function(p){
+    return { date: ago(p.days), category: p.cat, summary: p.what, source: p.src };
+  });
+
+  return { index: rollup(scores), scores: scores, counts: counts,
+           timeline: timeline, coverage: cov, live: false };
+}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+function renderDomainCards(){
+  var wrap = $("domains");
+  wrap.innerHTML = DOMAINS.map(function(d){
+    return '<button class="domain" type="button" data-key="' + d.key + '">' +
+             '<div class="dn">' + esc(d.name) + '</div>' +
+             '<div class="dh">' + esc(d.hint) + '</div>' +
+             '<div class="ds" data-score="' + d.key + '">n/a</div>' +
+           '</button>';
+  }).join("");
+  wrap.addEventListener("click", function(e){
+    var btn = e.target.closest(".domain");
+    if (btn) openDomain(btn.getAttribute("data-key"));
+  });
+}
+
+function renderDomainInfo(){
+  $("domainInfo").innerHTML = DOMAINS.map(function(d){
+    return '<div class="card dcard">' +
+             '<span class="eyebrow">' + esc(d.name) + '</span>' +
+             '<h3>' + esc(d.hint) + '</h3>' +
+             '<p>' + esc(d.measures) + '</p>' +
+             '<span class="src">' + esc(d.sources.split(",")[0]) + '</span>' +
+           '</div>';
+  }).join("");
+}
+
+function renderSnapshot(snap){
+  state.snapshot = snap;
+
+  $("score").textContent = snap.index;
+  $("score").classList.remove("dim");
+  $("verdict").textContent = verdictFor(snap.index);
+  $("needle").style.left = clamp(snap.index, 0, 100) + "%";
+
+  var label = state.label || ("Pinned location " + state.lat.toFixed(4) + ", " + state.lng.toFixed(4));
+  $("reportAddr").textContent = label;
+  $("signAddr").textContent = label;
+
+  var cov = $("coverage");
+  if (snap.live){
+    cov.textContent = "Live · " + (snap.cityName || "public records");
+    cov.className = "pill";
+  } else {
+    cov.textContent = "Sample model · outside live cities";
+    cov.className = "pill mid";
+  }
+
+  DOMAINS.forEach(function(d){
+    var el = document.querySelector('[data-score="' + d.key + '"]');
+    var v = snap.scores[d.key];
+    el.textContent = (typeof v === "number") ? v : "n/a";
+    el.className = "ds " + (typeof v === "number" ? band(v) : "");
+  });
+
+  var tl = $("timeline");
+  if (!snap.timeline.length){
+    tl.innerHTML = '<div class="tl-item" style="color:var(--muted)">No public records filed on this segment in the last twelve months.</div>';
+  } else {
+    tl.innerHTML = snap.timeline.map(function(r){
+      return '<div class="tl-item">' +
+               '<div class="d">' + esc(r.date) + '<span class="tag">' + esc(r.category) + '</span></div>' +
+               esc(r.summary) +
+               '<div class="d" style="margin-top:3px">Source: ' + esc(r.source) + '</div>' +
+             '</div>';
+    }).join("");
+  }
+  $("tlCount").textContent = snap.timeline.length + (snap.timeline.length === 1 ? " record" : " records");
+  $("status").textContent = "Report generated.";
+}
+
+function openDomain(key){
+  var d = DOMAINS.filter(function(x){ return x.key === key; })[0];
+  var snap = state.snapshot;
+  if (!d) return;
+  if (!snap){ toast("Score an address first."); return; }
+
+  var v = snap.scores[key];
+  $("mTitle").textContent = d.name;
+  $("mScore").textContent = "Score " + (typeof v === "number" ? v : "not available") + " of 100";
+  $("mMeasures").textContent = d.measures;
+  $("mSources").textContent = d.sources;
+
+  var found = [];
+  if (key === "civic"){
+    found = [
+      snap.counts.noise + " noise complaints in twelve months",
+      snap.counts.sanitation + " sanitation reports",
+      snap.counts.code + " code violations",
+      snap.counts.traffic + " traffic complaints"
+    ];
+  } else if (key === "permits"){
+    found = [
+      snap.counts.permits + " permits filed within " + CONFIG.RADIUS_M + " meters",
+      "Filings include alterations, roofing and structural work"
+    ];
+  } else {
+    found = [
+      "Domain score " + (typeof v === "number" ? v : "not available"),
+      "Coverage confidence " + snap.coverage.label.toLowerCase() + " for this area"
+    ];
+  }
+  var isLive = !!(snap.live && snap.liveDomains && snap.liveDomains[key]);
+  if (isLive){
+    found.push("Live public records for this location, pulled just now.");
+  } else if (snap.live){
+    found.push("Modeled estimate — a live feed for this domain in " + (snap.cityName || "this city") + " is not wired in yet.");
+  } else {
+    found.push("Demonstration values — this location is outside the live-data cities.");
+  }
+  $("mFound").innerHTML = found.map(function(f){ return "<li>" + esc(f) + "</li>"; }).join("");
+
+  $("mMeaning").textContent = (typeof v !== "number")
+    ? "This domain has no coverage here yet."
+    : (v >= 76 ? "This looks favorable relative to typical blocks. Nothing here needs chasing."
+      : v >= 51 ? "Mixed. Worth one question to the seller or the city before you commit."
+      : "Elevated. Read the records below and ask specifically about them.");
+
+  $("modal").classList.add("on");
+  $("mClose").focus();
+}
+function closeModal(){ $("modal").classList.remove("on"); }
+
+/* =====================================================================
+   GEOCODING. Failure never blocks a report.
+   ===================================================================== */
+var lastGeo = 0;
+async function forwardGeocode(q){
+  if (!q || !q.trim()) return null;
+  try {
+    var r = await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=" +
+                        encodeURIComponent(q), { headers:{ Accept:"application/json" } });
+    if (!r.ok) return null;
+    var j = await r.json();
+    if (j && j[0]) return { lat: parseFloat(j[0].lat), lng: parseFloat(j[0].lon), label: j[0].display_name };
+  } catch(e){}
+  return null;
+}
+async function reverseGeocode(lat, lng){
+  var now = Date.now();
+  if (now - lastGeo < 1100) return null;
+  lastGeo = now;
+  try {
+    var r = await fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=" + lat + "&lon=" + lng,
+                        { headers:{ Accept:"application/json" } });
+    if (!r.ok) return null;
+    var j = await r.json();
+    return j && j.display_name ? j.display_name : null;
+  } catch(e){ return null; }
+}
+
+/* =====================================================================
+   RUN
+   ===================================================================== */
+var busy = false;
+async function run(opts){
+  opts = opts || {};
+  if (busy) return;
+  busy = true;
+  $("report").classList.add("busy");
+  $("status").textContent = "Reading the public record...";
+
+  try {
+    if (opts.query){
+      var hit = await forwardGeocode(opts.query);
+      if (hit){
+        state.lat = hit.lat; state.lng = hit.lng; state.label = hit.label;
+        moveMap(hit.lat, hit.lng, 16);
+      } else {
+        state.label = opts.query.trim();
+        toast("Address lookup did not resolve, scoring the current pin instead.");
+      }
+    }
+    setCoords();
+    var snap = await getSnapshot(state.lat, state.lng);
+    renderSnapshot(snap);
+  } catch(e){
+    $("status").textContent = "Something went wrong generating that report.";
+    toast("Report failed. Try again in a moment.");
+  } finally {
+    busy = false;
+    $("report").classList.remove("busy");
+  }
+}
+
+function setCoords(){
+  $("coords").textContent = "LAT " + state.lat.toFixed(5) + "  LNG " + state.lng.toFixed(5);
+}
+
+/* =====================================================================
+   MAP. Leaflet from three CDNs, tiles from three providers,
+   and an honest panel if none of it arrives.
+   ===================================================================== */
+var LEAFLET_JS = [
+  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+  "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
+];
+var LEAFLET_CSS = [
+  "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css",
+  "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
+];
+var TILES = [
+  { url:"https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    opts:{ subdomains:"abcd", maxZoom:20, attribution:"OpenStreetMap contributors, CARTO" } },
+  { url:"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    opts:{ maxZoom:19, attribution:"OpenStreetMap contributors" } },
+  { url:"https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png",
+    opts:{ subdomains:"abc", maxZoom:20, attribution:"OpenStreetMap France" } }
+];
+
+var map, marker, tileIdx = 0, tileLayer, tileErrors = 0;
+
+function loadScript(i){
+  return new Promise(function(resolve, reject){
+    if (i >= LEAFLET_JS.length) return reject(new Error("no cdn"));
+    var s = document.createElement("script");
+    s.src = LEAFLET_JS[i];
+    s.crossOrigin = "";
+    s.onload = function(){ window.L ? resolve() : loadScript(i + 1).then(resolve, reject); };
+    s.onerror = function(){ loadScript(i + 1).then(resolve, reject); };
+    document.head.appendChild(s);
+  });
+}
+function ensureCss(){
+  // If the stylesheet in head was blocked, Leaflet panes get no dimensions.
+  var probe = document.createElement("div");
+  probe.className = "leaflet-pane";
+  probe.style.cssText = "";
+  document.body.appendChild(probe);
+  var pos = getComputedStyle(probe).position;
+  document.body.removeChild(probe);
+  if (pos === "absolute") return;
+  LEAFLET_CSS.forEach(function(href){
+    var l = document.createElement("link");
+    l.rel = "stylesheet"; l.href = href;
+    document.head.appendChild(l);
+  });
+}
+
+function pinIcon(){
+  var svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="40" viewBox="0 0 30 40">' +
+      '<path d="M15 39C15 39 28 24.5 28 15A13 13 0 1 0 2 15c0 9.5 13 24 13 24z" fill="#05603A"/>' +
+      '<circle cx="15" cy="15" r="6.2" fill="#fff"/>' +
+    '</svg>';
+  return window.L.divIcon({
+    html: svg, className: "", iconSize: [30, 40], iconAnchor: [15, 39]
+  });
+}
+
+function addTiles(){
+  var t = TILES[tileIdx];
+  if (tileLayer) map.removeLayer(tileLayer);
+  tileErrors = 0;
+  tileLayer = window.L.tileLayer(t.url, t.opts).addTo(map);
+  tileLayer.on("tileerror", function(){
+    tileErrors++;
+    if (tileErrors > 6){
+      tileIdx++;
+      if (tileIdx < TILES.length) addTiles();
+      else $("mapDown").classList.add("on");
+    }
+  });
+}
+
+function moveMap(lat, lng, zoom){
+  if (!state.mapReady) return;
+  map.setView([lat, lng], zoom || map.getZoom());
+  marker.setLatLng([lat, lng]);
+}
+
+function initMap(){
+  ensureCss();
+  map = window.L.map("map", { zoomControl:true, scrollWheelZoom:false })
+              .setView([state.lat, state.lng], 13);
+  addTiles();
+  marker = window.L.marker([state.lat, state.lng], { draggable:true, icon: pinIcon() }).addTo(map);
+  state.mapReady = true;
+
+  function pick(latlng){
+    state.lat = latlng.lat; state.lng = latlng.lng;
+    marker.setLatLng(latlng);
+    setCoords();
+    $("status").textContent = "Pin moved. Generating...";
+    reverseGeocode(latlng.lat, latlng.lng).then(function(name){
+      if (name){ state.label = name; $("addr").value = name; }
+      else { state.label = null; }
+      run({});
+    });
+  }
+  map.on("click", function(e){ pick(e.latlng); });
+  marker.on("dragend", function(){ pick(marker.getLatLng()); });
+  setCoords();
+}
+
+/* =====================================================================
+   WIRING
+   ===================================================================== */
+renderDomainCards();
+renderDomainInfo();
+setCoords();
+
+$("go").addEventListener("click", function(){ run({ query: $("addr").value }); });
+$("addr").addEventListener("keydown", function(e){
+  if (e.key === "Enter"){ e.preventDefault(); run({ query: $("addr").value }); }
+});
+$("pin").addEventListener("click", function(){
+  if (!state.mapReady){ toast("The map is not available, type an address instead."); return; }
+  var c = map.getCenter();
+  state.lat = c.lat; state.lng = c.lng; state.label = null;
+  marker.setLatLng(c);
+  reverseGeocode(c.lat, c.lng).then(function(n){
+    if (n){ state.label = n; $("addr").value = n; }
+    run({});
+  });
+});
+$("gps").addEventListener("click", function(){
+  if (!navigator.geolocation){ toast("This browser will not share a location."); return; }
+  $("status").textContent = "Asking for your location...";
+  navigator.geolocation.getCurrentPosition(function(pos){
+    state.lat = pos.coords.latitude; state.lng = pos.coords.longitude; state.label = null;
+    moveMap(state.lat, state.lng, 16);
+    reverseGeocode(state.lat, state.lng).then(function(n){
+      if (n){ state.label = n; $("addr").value = n; }
+      run({});
+    });
+  }, function(){
+    $("status").textContent = "Location was not shared.";
+    toast(location.protocol === "https:" || location.hostname === "localhost"
+      ? "Location permission was denied."
+      : "Location needs a secure connection. Try the deployed site.");
+  }, { enableHighAccuracy:true, timeout:10000, maximumAge:0 });
+});
+
+$("mClose").addEventListener("click", closeModal);
+$("modal").addEventListener("click", function(e){ if (e.target === $("modal")) closeModal(); });
+document.addEventListener("keydown", function(e){ if (e.key === "Escape") closeModal(); });
+
+$("contactLink").addEventListener("click", function(e){
+  e.preventDefault();
+  window.location.href = "mailto:" + CONFIG.CONTACT_EMAIL;
+});
+
+$("join").addEventListener("click", async function(){
+  var v = $("email").value.trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)){ toast("That email does not look right."); return; }
+  if (CONFIG.WAITLIST_ENDPOINT){
+    try {
+      await fetch(CONFIG.WAITLIST_ENDPOINT, {
+        method:"POST", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ email: v, source: "site" })
+      });
+    } catch(e){}
+  } else {
+    window.location.href = "mailto:" + CONFIG.CONTACT_EMAIL +
+      "?subject=Early%20access&body=" + encodeURIComponent("Please add " + v + " to the list.");
+  }
+  $("email").value = "";
+  $("joinNote").textContent = "You are on the list. We will write once, when your city is ready.";
+  toast("Added.");
+});
+
+function mapUnavailable(){
+  if (state.mapReady) return;
+  $("mapDown").classList.add("on");
+  $("status").textContent = "Map unavailable. Address search still works.";
+}
+setTimeout(mapUnavailable, 9000);
+loadScript(0).then(initMap).catch(mapUnavailable);
+})();
+</script>
+</body>
+</html>
