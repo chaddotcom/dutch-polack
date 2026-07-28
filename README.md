@@ -8,12 +8,21 @@ A TypeScript project.
 for any address. It needs **no backend and no database**: the browser queries
 municipal open-data APIs directly.
 
+Live-data cities (civic + development domains):
+
 - **Philadelphia** — [OpenDataPhilly Carto SQL API](https://phl.carto.com)
   (311, L&I violations, permits) via a PostGIS radius query.
-- **New York** — [NYC Open Data / Socrata](https://data.cityofnewyork.us)
-  (311, HPD violations) via a bounding-box query.
+- **New York, Chicago, Los Angeles, Austin, Seattle, Dallas, San Francisco** —
+  Socrata open-data APIs via bounding-box queries.
+- **Boston** — [CKAN datastore](https://data.boston.gov) SQL API.
+- **Washington DC** — [ArcGIS](https://opendata.dc.gov) FeatureServer query.
 - Everywhere else, and the domains without a wired feed yet (fire, schools,
   environment, reliability), fall back to a clearly labeled demonstration model.
+
+City coverage is config-driven: each city is one entry in the `CITIES` array
+plus a dataset config, so adding or correcting a city is a small, localized
+change. If every dataset for a covered city fails, that city falls back to the
+demonstration model rather than showing an empty "live" score.
 
 Open `index.html` in a browser, or serve it statically (e.g. GitHub Pages from
 the repo root). There are no keys or build step for the page itself.

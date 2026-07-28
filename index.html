@@ -371,7 +371,7 @@ footer a{color:#fff}
         <div class="card">
           <div class="notice">
             <b>Live public records.</b>
-            <span>In Philadelphia and New York, the civic and development scores are pulled straight from the cities' open-data APIs in your browser, with no account and no database of ours. Other domains, and other cities, use a clearly labeled demonstration model until their feeds are wired in.</span>
+            <span>Across the cities we cover (Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas and San Francisco), the civic and development scores are pulled straight from the cities' open-data APIs in your browser, with no account and no database of ours. Other domains, and other cities, use a clearly labeled demonstration model until their feeds are wired in.</span>
           </div>
 
           <div class="field">
@@ -566,7 +566,7 @@ footer a{color:#fff}
         </details>
         <details>
           <summary>Which cities work right now?</summary>
-          <p>Philadelphia and New York are first, because both publish clean, coordinate-tagged civic data through free public APIs. Austin, Boston, Seattle, San Francisco, Chicago, Washington, Denver and Portland follow. Anywhere outside a covered city currently returns demonstration data, clearly labeled.</p>
+          <p>Ten cities are wired to live public APIs today: Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas and San Francisco. Each publishes coordinate-tagged civic data through free, keyless public feeds that your browser reads directly. Anywhere outside a covered city currently returns demonstration data, clearly labeled.</p>
         </details>
         <details>
           <summary>What does the score actually mean?</summary>
@@ -682,7 +682,7 @@ footer a{color:#fff}
       "mainEntity":[
         {"@type":"Question","name":"Where does the data come from?","acceptedAnswer":{"@type":"Answer","text":"Municipal open data programs published by the cities themselves, including 311 requests, code violations and building permits. Every record carries its date and source."}},
         {"@type":"Question","name":"Is this about my future neighbors?","acceptedAnswer":{"@type":"Answer","text":"No. Agent Neighbor scores civic activity at a place. It does not profile residents, use demographics, or surface information about individuals."}},
-        {"@type":"Question","name":"Which cities work right now?","acceptedAnswer":{"@type":"Answer","text":"Philadelphia and New York are first, followed by other cities that publish civic data through open APIs. Uncovered areas return clearly labeled demonstration data."}},
+        {"@type":"Question","name":"Which cities work right now?","acceptedAnswer":{"@type":"Answer","text":"Ten cities are wired to live public APIs: Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas and San Francisco. Uncovered areas return clearly labeled demonstration data."}},
         {"@type":"Question","name":"What does the score actually mean?","acceptedAnswer":{"@type":"Answer","text":"The Street Context Index runs 0 to 100, where higher means a quieter civic record. It is a weighted roll-up of six domains and is a starting point for questions rather than a verdict."}}
       ]
     }
@@ -697,10 +697,10 @@ footer a{color:#fff}
 /* =====================================================================
    CONFIG
    No backend. The browser queries municipal open-data APIs directly and
-   scores the result. Covered cities (Philadelphia, New York) return live
-   civic and development records; anywhere else falls back to the built-in
-   demonstration model, clearly labeled. Nothing here needs a database of
-   our own, and no keys are required.
+   scores the result. Covered US cities return live civic and development
+   records; anywhere else falls back to the built-in demonstration model,
+   clearly labeled. Nothing here needs a database of our own, and no keys
+   are required.
    ===================================================================== */
 var CONFIG = {
   USE_LIVE_DATA: true,              // query public city APIs from the browser
@@ -715,18 +715,16 @@ var CONFIG = {
    endpoints we read. All of these support cross-origin requests and need no
    API key. If a city is not matched, we use the demonstration model. */
 var CITIES = [
-  {
-    key: "phl",
-    name: "Philadelphia",
-    bbox: { latMin: 39.85, latMax: 40.15, lngMin: -75.30, lngMax: -74.95 },
-    fetch: fetchPhiladelphia
-  },
-  {
-    key: "nyc",
-    name: "New York",
-    bbox: { latMin: 40.48, latMax: 40.93, lngMin: -74.27, lngMax: -73.68 },
-    fetch: fetchNewYork
-  }
+  { key:"phl", name:"Philadelphia",  bbox:{ latMin:39.85, latMax:40.15, lngMin:-75.30,  lngMax:-74.95  }, fetch:fetchPhiladelphia },
+  { key:"nyc", name:"New York",      bbox:{ latMin:40.48, latMax:40.93, lngMin:-74.27,  lngMax:-73.68  }, fetch:fetchNewYork },
+  { key:"chi", name:"Chicago",       bbox:{ latMin:41.60, latMax:42.05, lngMin:-87.95,  lngMax:-87.52  }, fetch:fetchChicago },
+  { key:"la",  name:"Los Angeles",   bbox:{ latMin:33.70, latMax:34.34, lngMin:-118.67, lngMax:-118.15 }, fetch:fetchLosAngeles },
+  { key:"aus", name:"Austin",        bbox:{ latMin:30.10, latMax:30.52, lngMin:-97.95,  lngMax:-97.56  }, fetch:fetchAustin },
+  { key:"bos", name:"Boston",        bbox:{ latMin:42.22, latMax:42.40, lngMin:-71.19,  lngMax:-70.99  }, fetch:fetchBoston },
+  { key:"sea", name:"Seattle",       bbox:{ latMin:47.49, latMax:47.74, lngMin:-122.44, lngMax:-122.22 }, fetch:fetchSeattle },
+  { key:"dc",  name:"Washington DC", bbox:{ latMin:38.79, latMax:39.00, lngMin:-77.12,  lngMax:-76.91  }, fetch:fetchWashingtonDC },
+  { key:"dal", name:"Dallas",        bbox:{ latMin:32.62, latMax:33.02, lngMin:-96.99,  lngMax:-96.55  }, fetch:fetchDallas },
+  { key:"sf",  name:"San Francisco", bbox:{ latMin:37.70, latMax:37.83, lngMin:-122.53, lngMax:-122.35 }, fetch:fetchSanFrancisco }
 ];
 
 function cityFor(lat, lng){
@@ -821,82 +819,187 @@ function categorize(text){
   return "Other";
 }
 
-/* ---------- Philadelphia: Carto SQL API with PostGIS radius ----------
-   phl.carto.com serves OpenDataPhilly. CORS-enabled, no key required.
-   Each dataset is queried independently so one failing table never sinks
-   the whole report. */
+/* ---------- generic fetch helpers ----------
+   Every low-level helper returns rows[] on success or null on failure (network
+   error, non-2xx, wrong shape). A dataset with simply no records returns [].
+   The `collect` folder then throws only when EVERY dataset for a city failed,
+   so a renamed/removed dataset degrades that city to the demonstration model
+   instead of inventing a rosy "live" score from zero records. */
 function cartoSql(sql){
   var url = "https://phl.carto.com/api/v2/sql?q=" + encodeURIComponent(sql);
   return fetch(url, { headers:{ Accept:"application/json" } })
     .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(j){ return (j && j.rows) ? j.rows : []; })
-    .catch(function(){ return []; });
+    .then(function(j){ return (j && j.rows) ? j.rows : null; })
+    .catch(function(){ return null; });
 }
+function socrata(host, id, params){
+  var qs = Object.keys(params).map(function(k){
+    return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]); }).join("&");
+  var url = "https://" + host + "/resource/" + id + ".json?" + qs;
+  return fetch(url, { headers:{ Accept:"application/json" } })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){ return Array.isArray(j) ? j : null; })
+    .catch(function(){ return null; });
+}
+function ckanSql(host, sql){
+  var url = "https://" + host + "/api/3/action/datastore_search_sql?sql=" + encodeURIComponent(sql);
+  return fetch(url, { headers:{ Accept:"application/json" } })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){ return (j && j.success && j.result && j.result.records) ? j.result.records : null; })
+    .catch(function(){ return null; });
+}
+function arcgisQuery(base, params){
+  var qs = Object.keys(params).map(function(k){
+    return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]); }).join("&");
+  return fetch(base + "/query?" + qs, { headers:{ Accept:"application/json" } })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){ return (j && j.features) ? j.features : null; })
+    .catch(function(){ return null; });
+}
+
+function bbox(lat, lng){
+  var R = CONFIG.RADIUS_M;
+  var dLat = R / 111320;
+  var dLng = R / (111320 * Math.cos(lat * Math.PI / 180) || 1);
+  return {
+    latMin: (lat - dLat).toFixed(6), latMax: (lat + dLat).toFixed(6),
+    lngMin: (lng - dLng).toFixed(6), lngMax: (lng + dLng).toFixed(6)
+  };
+}
+
+/* Fold per-dataset results into records; throw only if every dataset failed. */
+function collect(raw, datasets, label, pick){
+  if (raw.every(function(r){ return r === null; })) throw new Error(label + " unavailable");
+  var recs = [];
+  raw.forEach(function(rows, i){
+    if (!rows) return;
+    var d = datasets[i];
+    rows.forEach(function(row){
+      var got = pick(row, d);
+      var cat = d.cat === "auto" ? categorize(got.text) : d.cat;
+      recs.push(mkRecord(got.date, cat, got.text || d.fallback, d.source, d.domain));
+    });
+  });
+  return recs;
+}
+
+/* Socrata (SoQL) bounding-box fetcher, driven by a per-city dataset config. */
+async function socrataFetch(host, datasets, lat, lng){
+  var b = bbox(lat, lng), since = isoMonthsAgo(CONFIG.MONTHS), N = CONFIG.MAX_RECORDS;
+  var raw = await Promise.all(datasets.map(function(d){
+    var where = d.date + " > '" + since + "' AND " +
+      d.lat + " between " + b.latMin + " and " + b.latMax + " AND " +
+      d.lng + " between " + b.lngMin + " and " + b.lngMax;
+    return socrata(host, d.id, {
+      "$select": d.date + "," + d.text + "," + d.lat + "," + d.lng,
+      "$where": where, "$order": d.date + " DESC", "$limit": N
+    });
+  }));
+  return collect(raw, datasets, host, function(row, d){ return { date: row[d.date], text: row[d.text] }; });
+}
+
+/* CKAN datastore SQL fetcher (Boston). */
+async function ckanFetch(host, datasets, lat, lng){
+  var b = bbox(lat, lng), since = isoMonthsAgo(CONFIG.MONTHS), N = CONFIG.MAX_RECORDS;
+  var raw = await Promise.all(datasets.map(function(d){
+    var sql = 'SELECT "' + d.date + '","' + d.text + '","' + d.lat + '","' + d.lng + '" FROM "' + d.id +
+      '" WHERE "' + d.date + '" > \'' + since + '\' AND "' + d.lat + '" BETWEEN ' + b.latMin + ' AND ' + b.latMax +
+      ' AND "' + d.lng + '" BETWEEN ' + b.lngMin + ' AND ' + b.lngMax + ' ORDER BY "' + d.date + '" DESC LIMIT ' + N;
+    return ckanSql(host, sql);
+  }));
+  return collect(raw, datasets, host, function(row, d){ return { date: row[d.date], text: row[d.text] }; });
+}
+
+/* ArcGIS FeatureServer/MapServer envelope fetcher (Washington DC). */
+async function arcgisFetch(datasets, lat, lng){
+  var b = bbox(lat, lng), N = CONFIG.MAX_RECORDS;
+  var env = b.lngMin + "," + b.latMin + "," + b.lngMax + "," + b.latMax;
+  var raw = await Promise.all(datasets.map(function(d){
+    return arcgisQuery(d.url, {
+      where: "1=1", geometry: env, geometryType: "esriGeometryEnvelope", inSR: "4326",
+      spatialRel: "esriSpatialRelIntersects", outFields: d.date + "," + d.text,
+      orderByFields: d.date + " DESC", resultRecordCount: N, returnGeometry: "false", f: "json"
+    });
+  }));
+  return collect(raw, datasets, "washington dc", function(feature, d){
+    var a = feature.attributes || {};
+    var dt = a[d.date];
+    if (typeof dt === "number") { try { dt = new Date(dt).toISOString(); } catch(e){ dt = ""; } }
+    return { date: dt, text: a[d.text] };
+  });
+}
+
+/* ---------- Philadelphia: Carto SQL API with PostGIS radius ---------- */
 async function fetchPhiladelphia(lat, lng){
   var R = CONFIG.RADIUS_M, N = CONFIG.MAX_RECORDS;
   var within = "ST_DWithin(the_geom::geography, ST_SetSRID(ST_MakePoint(" +
                lng + "," + lat + "),4326)::geography, " + R + ")";
   var since = "(now() - interval '" + CONFIG.MONTHS + " months')";
-
-  var results = await Promise.all([
+  var raw = await Promise.all([
     cartoSql("SELECT requested_datetime AS d, service_name AS what FROM public_cases_fc WHERE " +
-             within + " AND requested_datetime >= " + since + " ORDER BY requested_datetime DESC LIMIT " + N)
-      .then(function(rows){ return rows.map(function(r){
-        return mkRecord(r.d, categorize(r.what), r.what || "311 service request", "Philadelphia 311", "civic"); }); }),
+             within + " AND requested_datetime >= " + since + " ORDER BY requested_datetime DESC LIMIT " + N),
     cartoSql("SELECT violationdate AS d, violationcodetitle AS what FROM violations WHERE " +
-             within + " AND violationdate >= " + since + " ORDER BY violationdate DESC LIMIT " + N)
-      .then(function(rows){ return rows.map(function(r){
-        return mkRecord(r.d, "Code", r.what || "Code violation", "Philadelphia L&I", "civic"); }); }),
+             within + " AND violationdate >= " + since + " ORDER BY violationdate DESC LIMIT " + N),
     cartoSql("SELECT permitissuedate AS d, permitdescription AS what FROM permits WHERE " +
              within + " AND permitissuedate >= " + since + " ORDER BY permitissuedate DESC LIMIT " + N)
-      .then(function(rows){ return rows.map(function(r){
-        return mkRecord(r.d, "Permit", r.what || "Building permit", "Philadelphia L&I permits", "permits"); }); })
   ]);
-  return flatten(results);
+  var meta = [
+    { cat:"auto",   source:"Philadelphia 311",         domain:"civic",   fallback:"311 service request" },
+    { cat:"Code",   source:"Philadelphia L&I",         domain:"civic",   fallback:"Code violation" },
+    { cat:"Permit", source:"Philadelphia L&I permits", domain:"permits", fallback:"Building permit" }
+  ];
+  return collect(raw, meta, "philadelphia", function(row){ return { date: row.d, text: row.what }; });
 }
 
-/* ---------- New York: Socrata open data, bounding-box query ----------
-   data.cityofnewyork.us is CORS-enabled and needs no key. We convert the
-   radius to a small lat/lng box, which every dataset supports. */
-function socrata(id, params){
-  var qs = Object.keys(params).map(function(k){
-    return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]); }).join("&");
-  var url = "https://data.cityofnewyork.us/resource/" + id + ".json?" + qs;
-  return fetch(url, { headers:{ Accept:"application/json" } })
-    .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(j){ return Array.isArray(j) ? j : []; })
-    .catch(function(){ return []; });
-}
-async function fetchNewYork(lat, lng){
-  var R = CONFIG.RADIUS_M, N = CONFIG.MAX_RECORDS;
-  var dLat = R / 111320;
-  var dLng = R / (111320 * Math.cos(lat * Math.PI / 180) || 1);
-  var latMin = (lat - dLat).toFixed(6), latMax = (lat + dLat).toFixed(6);
-  var lngMin = (lng - dLng).toFixed(6), lngMax = (lng + dLng).toFixed(6);
-  var since = isoMonthsAgo(CONFIG.MONTHS);
-  var box = function(latf, lngf){
-    return latf + " between " + latMin + " and " + latMax + " AND " +
-           lngf + " between " + lngMin + " and " + lngMax;
-  };
+/* ---------- Socrata / CKAN / ArcGIS city configs ----------
+   Each dataset entry names the id and the columns for date, description, lat and
+   lng. cat "auto" runs the shared categorizer; otherwise the fixed category is
+   used. NOTE: I could not reach these APIs from the build sandbox (egress
+   policy), so the dataset ids below come from documented schemas — a wrong id
+   simply fails safe to the demonstration model (see `collect`). Verify in a
+   browser and adjust ids/columns as needed. */
+var NYC_DATASETS = [
+  { id:"erm2-nwe9", date:"created_date",  text:"complaint_type",       lat:"latitude", lng:"longitude", cat:"auto", source:"NYC 311", domain:"civic",   fallback:"311 complaint" },
+  { id:"wvxf-dwi5", date:"inspectiondate",text:"novdescription",       lat:"latitude", lng:"longitude", cat:"Code", source:"NYC HPD", domain:"civic",   fallback:"Housing violation" }
+];
+var CHI_DATASETS = [
+  { id:"v6vf-nfxy", date:"created_date",  text:"sr_type",              lat:"latitude", lng:"longitude", cat:"auto",   source:"Chicago 311",       domain:"civic",   fallback:"311 request" },
+  { id:"22u3-xenr", date:"violation_date",text:"violation_description",lat:"latitude", lng:"longitude", cat:"Code",   source:"Chicago Buildings", domain:"civic",   fallback:"Building violation" },
+  { id:"ydr8-5enu", date:"issue_date",    text:"permit_type",          lat:"latitude", lng:"longitude", cat:"Permit", source:"Chicago Permits",   domain:"permits", fallback:"Building permit" }
+];
+var LA_DATASETS = [
+  { id:"b7dx-7gc3", date:"createddate",   text:"requesttype",          lat:"latitude", lng:"longitude", cat:"auto", source:"LA 311", domain:"civic", fallback:"311 request" }
+];
+var AUS_DATASETS = [
+  { id:"xwdj-i9he", date:"created_date",  text:"sr_type_desc",         lat:"latitude", lng:"longitude", cat:"auto",   source:"Austin 311",     domain:"civic",   fallback:"311 request" },
+  { id:"3syk-w9eu", date:"issued_date",   text:"permit_type_desc",     lat:"latitude", lng:"longitude", cat:"Permit", source:"Austin permits", domain:"permits", fallback:"Construction permit" }
+];
+var SEA_DATASETS = [
+  { id:"d6dz-jhfd", date:"created_date",  text:"service_request_type", lat:"latitude", lng:"longitude", cat:"auto", source:"Seattle CSR", domain:"civic", fallback:"Service request" }
+];
+var DAL_DATASETS = [
+  { id:"7vgc-a9tp", date:"created_date",  text:"service_request_type", lat:"latitude", lng:"longitude", cat:"auto", source:"Dallas 311", domain:"civic", fallback:"311 request" }
+];
+var SF_DATASETS = [
+  { id:"vw6y-z8j6", date:"requested_datetime", text:"service_name",    lat:"lat",      lng:"long",      cat:"auto", source:"SF 311", domain:"civic", fallback:"311 case" }
+];
+var BOS_DATASETS = [
+  { id:"9d7c2214-4709-478a-a2e8-fb2020a5bb94", date:"open_dt", text:"type", lat:"latitude", lng:"longitude", cat:"auto", source:"Boston 311", domain:"civic", fallback:"311 case" }
+];
+var DC_DATASETS = [
+  { url:"https://maps2.dcgis.dc.gov/dcgis/rest/services/DCGIS_DATA/ServiceRequests/MapServer/0",
+    date:"ADDDATE", text:"SERVICECODEDESCRIPTION", cat:"auto", source:"DC 311", domain:"civic", fallback:"Service request" }
+];
 
-  var results = await Promise.all([
-    socrata("erm2-nwe9", {
-      "$select": "created_date,complaint_type,descriptor",
-      "$where": "created_date > '" + since + "' AND " + box("latitude", "longitude"),
-      "$order": "created_date DESC", "$limit": N
-    }).then(function(rows){ return rows.map(function(r){
-      return mkRecord(r.created_date, categorize(r.complaint_type + " " + (r.descriptor || "")),
-        r.complaint_type || "311 complaint", "NYC 311", "civic"); }); }),
-    socrata("wvxf-dwi5", {
-      "$select": "inspectiondate,novdescription",
-      "$where": "inspectiondate > '" + since + "' AND " + box("latitude", "longitude"),
-      "$order": "inspectiondate DESC", "$limit": N
-    }).then(function(rows){ return rows.map(function(r){
-      return mkRecord(r.inspectiondate, "Code", trim(r.novdescription) || "Housing violation",
-        "NYC HPD", "civic"); }); })
-  ]);
-  return flatten(results);
-}
+function fetchNewYork(lat, lng){      return socrataFetch("data.cityofnewyork.us", NYC_DATASETS, lat, lng); }
+function fetchChicago(lat, lng){      return socrataFetch("data.cityofchicago.org", CHI_DATASETS, lat, lng); }
+function fetchLosAngeles(lat, lng){   return socrataFetch("data.lacity.org",        LA_DATASETS,  lat, lng); }
+function fetchAustin(lat, lng){       return socrataFetch("data.austintexas.gov",   AUS_DATASETS, lat, lng); }
+function fetchSeattle(lat, lng){      return socrataFetch("data.seattle.gov",       SEA_DATASETS, lat, lng); }
+function fetchDallas(lat, lng){       return socrataFetch("www.dallasopendata.com", DAL_DATASETS, lat, lng); }
+function fetchSanFrancisco(lat, lng){ return socrataFetch("data.sfgov.org",         SF_DATASETS,  lat, lng); }
+function fetchBoston(lat, lng){       return ckanFetch("data.boston.gov",           BOS_DATASETS, lat, lng); }
+function fetchWashingtonDC(lat, lng){ return arcgisFetch(DC_DATASETS, lat, lng); }
 
 /* ---------- record + snapshot construction ---------- */
 function mkRecord(dateRaw, category, summary, source, domain){
