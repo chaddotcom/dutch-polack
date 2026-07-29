@@ -193,6 +193,7 @@ section{scroll-margin-top:82px}
 .domain .dh{font-size:11.5px;color:var(--muted);line-height:1.35;margin-top:1px}
 .domain .ds{font-family:var(--mono);font-size:22px;font-weight:600;margin-top:9px;font-variant-numeric:tabular-nums}
 .ds.good{color:var(--sign)} .ds.mid{color:var(--amber)} .ds.low{color:var(--red)}
+.ds.na{color:var(--muted);font-size:15px;font-weight:400}
 
 .tl{border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-top:10px}
 .tl-item{padding:11px 13px;border-bottom:1px solid var(--line);font-size:14px}
@@ -370,8 +371,8 @@ footer a{color:#fff}
       <div class="app">
         <div class="card">
           <div class="notice">
-            <b>Live public records.</b>
-            <span>Across the cities we cover (Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas and San Francisco), the civic and development scores are pulled straight from the cities' open-data APIs in your browser, with no account and no database of ours. Other domains, and other cities, use a clearly labeled demonstration model until their feeds are wired in.</span>
+            <b>Live public records only.</b>
+            <span>Across the cities we cover (Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas and San Francisco), the civic and development scores are pulled straight from the cities' open-data APIs in your browser, with no account and no database of ours. Any domain or location without a live feed yet is marked "Not yet available" — nothing is modeled or estimated.</span>
           </div>
 
           <div class="field">
@@ -570,7 +571,7 @@ footer a{color:#fff}
         </details>
         <details>
           <summary>What does the score actually mean?</summary>
-          <p>The index runs 0 to 100, where higher means a quieter civic record. It is a weighted roll-up of six domains, and it is a starting point for questions rather than a verdict. A low score on a street you love means go ask about the permits, not walk away.</p>
+          <p>The index runs 0 to 100, where higher means a quieter civic record. It is a weighted roll-up of the domains we currently have live records for — a partial index while the remaining domains are still being wired in — and it is a starting point for questions rather than a verdict. Any domain without a live feed is marked "not yet available" rather than guessed, so the score is never padded with estimates.</p>
         </details>
         <details>
           <summary>How current is it?</summary>
@@ -683,7 +684,7 @@ footer a{color:#fff}
         {"@type":"Question","name":"Where does the data come from?","acceptedAnswer":{"@type":"Answer","text":"Municipal open data programs published by the cities themselves, including 311 requests, code violations and building permits. Every record carries its date and source."}},
         {"@type":"Question","name":"Is this about my future neighbors?","acceptedAnswer":{"@type":"Answer","text":"No. Agent Neighbor scores civic activity at a place. It does not profile residents, use demographics, or surface information about individuals."}},
         {"@type":"Question","name":"Which cities work right now?","acceptedAnswer":{"@type":"Answer","text":"Ten cities are wired to live public APIs: Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas and San Francisco. Uncovered areas return clearly labeled demonstration data."}},
-        {"@type":"Question","name":"What does the score actually mean?","acceptedAnswer":{"@type":"Answer","text":"The Street Context Index runs 0 to 100, where higher means a quieter civic record. It is a weighted roll-up of six domains and is a starting point for questions rather than a verdict."}}
+        {"@type":"Question","name":"What does the score actually mean?","acceptedAnswer":{"@type":"Answer","text":"The Street Context Index runs 0 to 100, where higher means a quieter civic record. It is a weighted roll-up of the domains with live records — a partial index while the rest are wired in — and a starting point for questions rather than a verdict. Domains without a live feed are marked not yet available, never modeled."}}
       ]
     }
   ]
@@ -698,9 +699,9 @@ footer a{color:#fff}
    CONFIG
    No backend. The browser queries municipal open-data APIs directly and
    scores the result. Covered US cities return live civic and development
-   records; anywhere else falls back to the built-in demonstration model,
-   clearly labeled. Nothing here needs a database of our own, and no keys
-   are required.
+   records; any domain or place without a live feed is marked "not yet
+   available" rather than modeled. Nothing here is estimated, needs a
+   database of our own, or requires keys.
    ===================================================================== */
 var CONFIG = {
   USE_LIVE_DATA: true,              // query public city APIs from the browser
@@ -790,23 +791,15 @@ var state = {
    DATA LAYER. This is the swap point.
    ===================================================================== */
 async function getSnapshot(lat, lng){
-  if (CONFIG.USE_LIVE_DATA){
-    var city = cityFor(lat, lng);
-    if (city){
-      try {
-        var records = await city.fetch(lat, lng);
-        if (records && records.length){
-          return buildLiveSnapshot(city, records, lat, lng);
-        }
-        // Covered city, but the block itself is quiet. Still a real result.
-        if (records){
-          return buildLiveSnapshot(city, [], lat, lng);
-        }
-      } catch(e){ /* fall through to the model below */ }
-      toast("Live records for " + city.name + " did not load, showing the model.");
-    }
+  var city = cityFor(lat, lng);
+  if (!city) return emptySnapshot("nocoverage", null);   // outside covered cities: no data, no model
+  try {
+    var res = await city.fetch(lat, lng);                // { records, live }
+    return buildLiveSnapshot(city, res, lat, lng);
+  } catch(e){
+    toast("Live feeds for " + city.name + " are unavailable right now.");
+    return emptySnapshot("unavailable", city.name);
   }
-  return sampleSnapshot(lat, lng);
 }
 
 /* ---------- category mapping, shared across cities ---------- */
@@ -870,17 +863,18 @@ function bbox(lat, lng){
 /* Fold per-dataset results into records; throw only if every dataset failed. */
 function collect(raw, datasets, label, pick){
   if (raw.every(function(r){ return r === null; })) throw new Error(label + " unavailable");
-  var recs = [];
+  var recs = [], live = {};
   raw.forEach(function(rows, i){
-    if (!rows) return;
+    if (rows === null) return;            // this dataset's feed failed
     var d = datasets[i];
+    live[d.domain] = true;                // the feed responded (even with zero rows)
     rows.forEach(function(row){
       var got = pick(row, d);
       var cat = d.cat === "auto" ? categorize(got.text) : d.cat;
       recs.push(mkRecord(got.date, cat, got.text || d.fallback, d.source, d.domain));
     });
   });
-  return recs;
+  return { records: recs, live: Object.keys(live) };
 }
 
 /* Socrata (SoQL) bounding-box fetcher, driven by a per-city dataset config. */
@@ -1018,37 +1012,28 @@ function isoMonthsAgo(months){
   return d.toISOString().slice(0, 19);
 }
 
-/* Turns real public records into the snapshot shape the UI renders. Civic and
-   development scores come from the records; the domains we do not have a live
-   feed for yet borrow the deterministic model so the index is never blank, and
-   every one of those is labeled as modeled, not measured. */
-function buildLiveSnapshot(city, records, lat, lng){
+/* Turns real public records into the snapshot the UI renders. ONLY domains
+   backed by a live feed get a score; every other domain is left null and shown
+   as "not yet available". Nothing is modeled or estimated. The index is a
+   partial weighted roll-up over whichever domains actually have real data. */
+function buildLiveSnapshot(city, res, lat, lng){
+  var records = (res && res.records) || [];
+  var liveDomains = (res && res.live) || [];
+  function isLive(k){ return liveDomains.indexOf(k) >= 0; }
+
   var civic = records.filter(function(r){ return r.domain === "civic"; });
   var permitRecs = records.filter(function(r){ return r.domain === "permits"; });
-
   function countCat(cat){ return civic.filter(function(r){ return r.category === cat; }).length; }
   var counts = {
-    noise: countCat("Noise"),
-    sanitation: countCat("Sanitation"),
-    code: countCat("Code"),
-    traffic: countCat("Traffic"),
-    permits: permitRecs.length
+    noise: countCat("Noise"), sanitation: countCat("Sanitation"),
+    code: countCat("Code"), traffic: countCat("Traffic"), permits: permitRecs.length
   };
-
-  var model = sampleSnapshot(lat, lng);          // deterministic filler for unwired domains
-  var liveDomains = { civic: true, permits: permitRecs.length > 0 || city.key === "phl" };
 
   var load = counts.noise * 3 + counts.sanitation * 2 + counts.code * 3 + counts.traffic;
-  var scores = {
-    civic:   clamp(Math.round(96 - load * 1.25), 0, 100),
-    permits: liveDomains.permits
-               ? clamp(Math.round(92 - Math.max(0, counts.permits - 6) * 2.2), 30, 100)
-               : model.scores.permits,
-    fire:    model.scores.fire,
-    schools: model.scores.schools,
-    env:     model.scores.env,
-    rely:    model.scores.rely
-  };
+  var scores = {};
+  DOMAINS.forEach(function(d){ scores[d.key] = null; });        // default: not yet available
+  if (isLive("civic"))   scores.civic   = clamp(Math.round(96 - load * 1.25), 0, 100);
+  if (isLive("permits")) scores.permits = clamp(Math.round(92 - Math.max(0, counts.permits - 6) * 2.2), 30, 100);
 
   var timeline = records.slice().sort(function(a, b){
     return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0);
@@ -1056,22 +1041,32 @@ function buildLiveSnapshot(city, records, lat, lng){
     return { date: r.date, category: r.category, summary: r.summary, source: r.source };
   });
 
-  var liveCount = (liveDomains.civic ? 1 : 0) + (liveDomains.permits ? 1 : 0);
-  var pct = clamp(58 + liveCount * 14, 40, 90);
-
   return {
     index: rollup(scores),
     scores: scores,
     counts: counts,
     timeline: timeline,
-    coverage: { label: pct >= 75 ? "High" : "Medium", pct: pct },
-    live: true,
     liveDomains: liveDomains,
+    domainsTotal: DOMAINS.length,
     cityName: city.name,
-    liveRecordCount: records.length
+    status: "live",
+    live: true
   };
 }
 
+/* A report with no real data behind it: nothing scored, and nothing modeled. */
+function emptySnapshot(status, cityName){
+  var scores = {};
+  DOMAINS.forEach(function(d){ scores[d.key] = null; });
+  return {
+    index: null, scores: scores, counts: {}, timeline: [],
+    liveDomains: [], domainsTotal: DOMAINS.length,
+    cityName: cityName || null, status: status, live: false
+  };
+}
+
+/* Weighted roll-up over ONLY the domains with a real score. Returns null when
+   nothing is scored, so the UI shows a blank instead of a fabricated zero. */
 function rollup(s){
   var w = { civic:.25, fire:.18, schools:.18, permits:.13, env:.16, rely:.10 };
   var total = 0, used = 0;
@@ -1079,55 +1074,7 @@ function rollup(s){
     var v = s[d.key];
     if (typeof v === "number"){ total += v * w[d.key]; used += w[d.key]; }
   });
-  return used ? Math.round(total / used) : 0;
-}
-
-/* ---------- sample model, deterministic per location ---------- */
-function sampleSnapshot(lat, lng){
-  var a = Math.abs(Math.sin(lat * 0.17));
-  var b = Math.abs(Math.cos(lng * 0.15));
-  var c = Math.abs(Math.sin((lat + lng) * 0.07));
-  var s = Math.abs(Math.sin(lat * 0.09) + Math.cos(lng * 0.11)) / 2;
-
-  var counts = {
-    noise: clamp(Math.round(3 + s * 11), 0, 20),
-    sanitation: clamp(Math.round(1 + (1 - s) * 6), 0, 12),
-    code: clamp(Math.round(s * 5), 0, 10),
-    traffic: clamp(Math.round((1 - s) * 4), 0, 9),
-    permits: clamp(Math.round(a * 9), 0, 14)
-  };
-  var load = counts.noise * 3 + counts.sanitation * 2 + counts.code * 3 + counts.traffic;
-  var scores = {
-    civic:   clamp(Math.round(96 - load * 1.25), 0, 100),
-    fire:    clamp(Math.round(100 - c * 52), 0, 100),
-    schools: clamp(Math.round(55 + b * 32 - c * 11), 0, 100),
-    permits: clamp(Math.round(88 - Math.abs(a * 100 - 55) * 0.85), 0, 100),
-    env:     clamp(Math.round((100 - c * 100) * .5 + (100 - b * 100) * .2 + (60 + a * 35) * .3), 0, 100),
-    rely:    clamp(Math.round(55 + a * 34 - b * 9), 0, 100)
-  };
-  var cov = c > .66 ? { label:"High", pct:82 } : (c > .33 ? { label:"Medium", pct:64 } : { label:"Low", pct:41 });
-
-  var today = new Date();
-  function ago(days){
-    var d = new Date(today.getTime() - days * 86400000);
-    return d.toISOString().slice(0, 10);
-  }
-  var pool = [
-    { days: Math.round(9 + s * 20),   cat:"Noise",      what:"Loud music or party complaint", src:"City 311" },
-    { days: Math.round(31 + b * 40),  cat:"Sanitation", what:"Illegal dumping reported",      src:"Public Works" },
-    { days: Math.round(66 + a * 50),  cat:"Code",       what:"Property maintenance violation", src:"Code Enforcement" },
-    { days: Math.round(104 + c * 60), cat:"Permit",     what:"Alteration permit issued",       src:"Permitting Office" },
-    { days: Math.round(148 + b * 70), cat:"Noise",      what:"Construction noise complaint",   src:"City 311" },
-    { days: Math.round(205 + a * 80), cat:"Permit",     what:"Roof replacement permit",        src:"Permitting Office" },
-    { days: Math.round(263 + c * 70), cat:"Traffic",    what:"Blocked driveway reported",      src:"City 311" }
-  ];
-  var keep = 3 + Math.round(s * 4);
-  var timeline = pool.slice(0, keep).map(function(p){
-    return { date: ago(p.days), category: p.cat, summary: p.what, source: p.src };
-  });
-
-  return { index: rollup(scores), scores: scores, counts: counts,
-           timeline: timeline, coverage: cov, live: false };
+  return used ? Math.round(total / used) : null;
 }
 
 /* =====================================================================
@@ -1162,34 +1109,56 @@ function renderDomainInfo(){
 function renderSnapshot(snap){
   state.snapshot = snap;
 
-  $("score").textContent = snap.index;
-  $("score").classList.remove("dim");
-  $("verdict").textContent = verdictFor(snap.index);
-  $("needle").style.left = clamp(snap.index, 0, 100) + "%";
+  var hasIndex = typeof snap.index === "number";
+  var liveCount = snap.liveDomains ? snap.liveDomains.length : 0;
+  var total = snap.domainsTotal || DOMAINS.length;
+
+  var scoreEl = $("score");
+  scoreEl.textContent = hasIndex ? snap.index : "—";
+  scoreEl.classList.toggle("dim", !hasIndex);
+
+  if (hasIndex){
+    $("verdict").textContent = verdictFor(snap.index) +
+      " · partial index, " + liveCount + " of " + total + " domains live";
+  } else if (snap.status === "nocoverage"){
+    $("verdict").textContent = "No live coverage for this location yet";
+  } else {
+    $("verdict").textContent = "Live public records are unavailable right now";
+  }
+  $("needle").style.left = (hasIndex ? clamp(snap.index, 0, 100) : 0) + "%";
 
   var label = state.label || ("Pinned location " + state.lat.toFixed(4) + ", " + state.lng.toFixed(4));
   $("reportAddr").textContent = label;
   $("signAddr").textContent = label;
 
   var cov = $("coverage");
-  if (snap.live){
-    cov.textContent = "Live · " + (snap.cityName || "public records");
+  if (snap.status === "live"){
+    cov.textContent = "Live · " + (snap.cityName || "public records") + " · " + liveCount + "/" + total + " domains";
     cov.className = "pill";
+  } else if (snap.status === "nocoverage"){
+    cov.textContent = "No live coverage here";
+    cov.className = "pill low";
   } else {
-    cov.textContent = "Sample model · outside live cities";
+    cov.textContent = "Live feeds unavailable";
     cov.className = "pill mid";
   }
 
   DOMAINS.forEach(function(d){
     var el = document.querySelector('[data-score="' + d.key + '"]');
     var v = snap.scores[d.key];
-    el.textContent = (typeof v === "number") ? v : "n/a";
-    el.className = "ds " + (typeof v === "number" ? band(v) : "");
+    var isNum = typeof v === "number";
+    el.textContent = isNum ? v : "n/a";
+    el.className = "ds " + (isNum ? band(v) : "na");
   });
 
   var tl = $("timeline");
   if (!snap.timeline.length){
-    tl.innerHTML = '<div class="tl-item" style="color:var(--muted)">No public records filed on this segment in the last twelve months.</div>';
+    var msg = snap.status === "live"
+      ? "No public records filed on this segment in the last twelve months."
+      : snap.status === "nocoverage"
+        ? "No live-data coverage for this location yet. Only real records from covered cities are shown, never modeled estimates."
+        : "Live public records could not be loaded. Nothing is shown rather than a modeled guess.";
+    tl.innerHTML = '<div class="tl-item" style="color:var(--muted)">' + msg + '</div>';
   } else {
     tl.innerHTML = snap.timeline.map(function(r){
       return '<div class="tl-item">' +
@@ -1200,7 +1169,8 @@ function renderSnapshot(snap){
     }).join("");
   }
   $("tlCount").textContent = snap.timeline.length + (snap.timeline.length === 1 ? " record" : " records");
-  $("status").textContent = "Report generated.";
+  $("status").textContent = hasIndex ? "Report generated."
+    : (snap.status === "nocoverage" ? "Outside live-data cities." : "Live feeds unavailable.");
 }
 
 function openDomain(key){
@@ -1210,42 +1180,41 @@ function openDomain(key){
   if (!snap){ toast("Score an address first."); return; }
 
   var v = snap.scores[key];
+  var isNum = typeof v === "number";
   $("mTitle").textContent = d.name;
-  $("mScore").textContent = "Score " + (typeof v === "number" ? v : "not available") + " of 100";
+  $("mScore").textContent = isNum ? ("Score " + v + " of 100") : "Not yet available";
   $("mMeasures").textContent = d.measures;
   $("mSources").textContent = d.sources;
 
-  var found = [];
-  if (key === "civic"){
+  var found;
+  if (!isNum){
+    found = [
+      snap.status === "nocoverage"
+        ? "No live-data coverage for this location yet."
+        : "No live feed is wired for this domain yet.",
+      "Nothing is estimated here — it stays blank until real public records back it."
+    ];
+  } else if (key === "civic"){
     found = [
       snap.counts.noise + " noise complaints in twelve months",
       snap.counts.sanitation + " sanitation reports",
       snap.counts.code + " code violations",
-      snap.counts.traffic + " traffic complaints"
+      snap.counts.traffic + " traffic complaints",
+      "Live public records for this location, pulled just now."
     ];
   } else if (key === "permits"){
     found = [
       snap.counts.permits + " permits filed within " + CONFIG.RADIUS_M + " meters",
-      "Filings include alterations, roofing and structural work"
+      "Filings include alterations, roofing and structural work",
+      "Live public records for this location, pulled just now."
     ];
   } else {
-    found = [
-      "Domain score " + (typeof v === "number" ? v : "not available"),
-      "Coverage confidence " + snap.coverage.label.toLowerCase() + " for this area"
-    ];
-  }
-  var isLive = !!(snap.live && snap.liveDomains && snap.liveDomains[key]);
-  if (isLive){
-    found.push("Live public records for this location, pulled just now.");
-  } else if (snap.live){
-    found.push("Modeled estimate — a live feed for this domain in " + (snap.cityName || "this city") + " is not wired in yet.");
-  } else {
-    found.push("Demonstration values — this location is outside the live-data cities.");
+    found = [ "Domain score " + v, "Backed by live public records for this location." ];
   }
   $("mFound").innerHTML = found.map(function(f){ return "<li>" + esc(f) + "</li>"; }).join("");
 
-  $("mMeaning").textContent = (typeof v !== "number")
-    ? "This domain has no coverage here yet."
+  $("mMeaning").textContent = !isNum
+    ? "This domain isn't backed by real data yet, so it is left blank rather than modeled."
     : (v >= 76 ? "This looks favorable relative to typical blocks. Nothing here needs chasing."
       : v >= 51 ? "Mixed. Worth one question to the seller or the city before you commit."
       : "Elevated. Read the records below and ask specifically about them.");

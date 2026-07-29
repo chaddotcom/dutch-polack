@@ -16,13 +16,16 @@ Live-data cities (civic + development domains):
   Socrata open-data APIs via bounding-box queries.
 - **Boston** — [CKAN datastore](https://data.boston.gov) SQL API.
 - **Washington DC** — [ArcGIS](https://opendata.dc.gov) FeatureServer query.
-- Everywhere else, and the domains without a wired feed yet (fire, schools,
-  environment, reliability), fall back to a clearly labeled demonstration model.
+- Everywhere else, and every domain without a wired feed yet (fire, schools,
+  environment, reliability), is marked **"Not yet available."** Nothing is
+  modeled or estimated — the index is a partial roll-up over only the domains
+  that have real records.
 
 City coverage is config-driven: each city is one entry in the `CITIES` array
 plus a dataset config, so adding or correcting a city is a small, localized
-change. If every dataset for a covered city fails, that city falls back to the
-demonstration model rather than showing an empty "live" score.
+change. Only domains with a responding live feed are scored; if every dataset
+for a covered city fails, the report shows "not yet available" rather than a
+fabricated score.
 
 Open `index.html` in a browser, or serve it statically (e.g. GitHub Pages from
 the repo root). There are no keys or build step for the page itself.
