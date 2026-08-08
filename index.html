@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agent Neighbor | Know the Vibe before you sign</title>
 
-<meta name="description" content="Agent Neighbor reads the public record of a street, 311 calls, code violations, permits, fire response, schools and environmental risk, and turns it into one explainable Street Context Index for any address.">
+<meta name="description" content="Agent Neighbor turns a street's public record — 311 calls, code violations, permits, schools, environmental risk — into one explainable score for any address.">
 <meta name="theme-color" content="#05603A">
 <meta name="color-scheme" content="light">
 <link rel="canonical" href="https://agentneighbor.com/">
@@ -27,8 +27,9 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;900&family=Overpass+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;900&family=Overpass+Mono:wght@400;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;900&family=Overpass+Mono:wght@400;600&display=swap"></noscript>
+<!-- Leaflet CSS is injected on demand by the map code (ensureCss), so it never blocks first render. -->
 
 <style>
 :root{
