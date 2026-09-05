@@ -12,8 +12,9 @@ Live-data cities (civic + development domains):
 
 - **Philadelphia** — [OpenDataPhilly Carto SQL API](https://phl.carto.com)
   (311, L&I violations, permits) via a PostGIS radius query.
-- **New York, Chicago, Los Angeles, Austin, Seattle, Dallas, San Francisco** —
-  Socrata open-data APIs via bounding-box queries.
+- **New York, Chicago, Los Angeles, Austin, Seattle, Dallas, San Francisco,
+  Cincinnati, Kansas City, New Orleans** — Socrata open-data APIs via
+  bounding-box queries.
 - **Boston** — [CKAN datastore](https://data.boston.gov) SQL API.
 - **Washington DC** — [ArcGIS](https://opendata.dc.gov) FeatureServer query.
 - Everywhere else, and every domain without a wired feed yet (fire, schools,
@@ -49,6 +50,16 @@ npm install
 | `npm run lint`      | Run ESLint                                    |
 | `npm run lint:fix`  | Run ESLint and auto-fix where possible       |
 | `npm test`          | Run the test suite with Vitest               |
+| `npm run gen`       | Generate city landing pages + guides hub + sitemap |
+
+## Content pages (SEO)
+
+Per-city landing pages (e.g. `/philadelphia/`), the guides hub (`/guides/`)
+and `sitemap.xml` are generated from a single config in `scripts/generate.mjs`.
+Edit the shared shell in `assets/site.css` or the `CITIES` / `GUIDES` config in
+that script, then run `npm run gen` to rebuild every page. The homepage
+(`index.html`) and hand-authored guide articles under `guides/<slug>/` are not
+touched by the generator.
 
 ## Project layout
 
