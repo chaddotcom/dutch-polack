@@ -1,0 +1,154 @@
+/* =====================================================================
+   Agent Neighbor — shared styles for content pages (city pages, guides).
+   Mirrors the design tokens and primitives used on the homepage so every
+   page reads as one site. The homepage keeps its own inline styles; this
+   file is the single shell that all generated content pages link to.
+   ===================================================================== */
+
+:root{
+  --sign:#05603A;
+  --sign-deep:#033B24;
+  --sign-tint:#E6F1EA;
+  --ink:#16211C;
+  --muted:#5C6B62;
+  --paper:#F2F4F0;
+  --white:#FFFFFF;
+  --line:#D7DDD6;
+  --amber:#B8820A;
+  --amber-tint:#FBF2DC;
+  --red:#B3241C;
+  --red-tint:#FBECEA;
+  --radius:14px;
+  --shadow:0 10px 30px rgba(3,59,36,.10);
+  --maxw:1120px;
+  --font:'Overpass',ui-sans-serif,system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --mono:'Overpass Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--font);font-size:16px;line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+img,svg{max-width:100%}
+a{color:var(--sign);text-decoration-thickness:1.5px;text-underline-offset:3px}
+h1,h2,h3,h4,p,ul,ol{margin:0}
+ul{padding-left:1.1em}
+:focus-visible{outline:3px solid var(--amber);outline-offset:3px;border-radius:6px}
+.shell{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:14px;top:14px;z-index:999;background:var(--sign);color:#fff;padding:10px 14px;border-radius:8px}
+
+/* ---------- brand mark ---------- */
+.mark{width:38px;height:38px;border-radius:9px;background:var(--sign);position:relative;flex:0 0 auto}
+.mark::after{content:"";position:absolute;inset:4px;border:2px solid #fff;border-radius:6px}
+.mark span{
+  position:absolute;inset:0;display:grid;place-items:center;
+  color:#fff;font-weight:900;font-size:19px;letter-spacing:-.02em;
+}
+.eyebrow{
+  font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--sign);
+}
+
+/* ---------- header ---------- */
+.top{position:sticky;top:0;z-index:1000;background:rgba(242,244,240,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top-in{display:flex;align-items:center;gap:18px;padding:12px 0}
+.brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--ink)}
+.brand b{font-weight:900;font-size:19px;letter-spacing:-.02em;line-height:1}
+.brand small{display:block;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.nav{display:flex;gap:22px;margin-left:auto;align-items:center}
+.nav a{color:var(--ink);text-decoration:none;font-size:14px;font-weight:600}
+.nav a:hover{color:var(--sign)}
+@media(max-width:860px){.nav .hide-sm{display:none}}
+
+/* ---------- buttons ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  font-family:var(--font);font-weight:700;font-size:15px;line-height:1;
+  padding:13px 18px;border-radius:10px;border:2px solid transparent;
+  cursor:pointer;text-decoration:none;transition:background .15s,color .15s,transform .08s;
+}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--sign);color:#fff}
+.btn-primary:hover{background:var(--sign-deep)}
+.btn-ghost{background:transparent;color:var(--sign);border-color:var(--line)}
+.btn-ghost:hover{border-color:var(--sign);background:var(--sign-tint)}
+.btn-sm{padding:10px 14px;font-size:14px}
+.btn-onsign{background:#fff;color:var(--sign-deep)}
+.btn-onsign:hover{background:#DDEDE3}
+
+/* ---------- chips ---------- */
+.chip{
+  font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--white);border:1px solid var(--line);border-radius:999px;padding:6px 11px;color:var(--muted);
+}
+
+/* ---------- sections ---------- */
+.card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+.band{padding:56px 0}
+.band.alt{background:var(--white);border-block:1px solid var(--line)}
+.head{max-width:60ch;margin-bottom:28px}
+.head h2{font-size:clamp(26px,3.4vw,36px);font-weight:900;letter-spacing:-.03em;line-height:1.08;margin:10px 0 10px}
+.head p{color:var(--muted);font-size:17px}
+
+/* ---------- page hero for content pages ---------- */
+.page-hero{padding:48px 0 8px}
+.page-hero h1{
+  font-size:clamp(32px,4.6vw,52px);font-weight:900;line-height:1.04;letter-spacing:-.035em;
+  margin:12px 0 14px;max-width:20ch;
+}
+.page-hero h1 em{font-style:normal;color:var(--sign)}
+.page-hero .sub{font-size:18px;color:var(--muted);max-width:60ch}
+.page-hero .hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+.trust{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+
+/* ---------- breadcrumb ---------- */
+.crumbs{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:22px}
+.crumbs a{color:var(--muted);text-decoration:none}
+.crumbs a:hover{color:var(--sign)}
+.crumbs span{margin:0 7px;opacity:.5}
+
+/* ---------- prose (article body) ---------- */
+.prose{max-width:72ch}
+.prose h2{font-size:clamp(22px,2.6vw,28px);font-weight:900;letter-spacing:-.02em;line-height:1.15;margin:38px 0 12px}
+.prose h3{font-size:19px;font-weight:700;letter-spacing:-.01em;margin:26px 0 8px}
+.prose p{color:var(--ink);font-size:17px;margin:0 0 16px}
+.prose ul,.prose ol{margin:0 0 16px;padding-left:1.3em}
+.prose li{margin:0 0 8px;font-size:17px}
+.prose li::marker{color:var(--sign)}
+.prose a{color:var(--sign);font-weight:600}
+.prose strong{font-weight:700}
+.prose .lede{font-size:19px;color:var(--muted)}
+
+/* ---------- stat grid (city pages) ---------- */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin:8px 0 4px}
+.stat{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.stat b{display:block;font-size:15px;font-weight:700;margin-bottom:4px}
+.stat p{color:var(--muted);font-size:14px;margin:0}
+.stat .src{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--sign);margin-top:10px}
+
+/* ---------- related links ---------- */
+.related{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.related a{
+  display:block;background:var(--white);border:1px solid var(--line);border-radius:var(--radius);
+  padding:18px;text-decoration:none;color:var(--ink);transition:border-color .15s,transform .08s;
+}
+.related a:hover{border-color:var(--sign);transform:translateY(-2px)}
+.related b{display:block;font-size:16px;font-weight:700;margin-bottom:4px}
+.related span{color:var(--muted);font-size:14px}
+
+/* ---------- CTA band ---------- */
+.cta{background:var(--sign);border-radius:18px;box-shadow:var(--shadow);padding:34px;color:#fff;text-align:center}
+.cta h2{font-size:clamp(24px,3vw,32px);font-weight:900;letter-spacing:-.02em;margin:0 0 10px}
+.cta p{color:#DFF0E6;max-width:52ch;margin:0 auto 22px}
+.cta .hero-actions{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+
+/* ---------- footer ---------- */
+footer{background:var(--sign-deep);color:#C7DED2;padding:40px 0 30px;margin-top:8px}
+.foot-grid{display:flex;flex-wrap:wrap;gap:24px;justify-content:space-between;align-items:flex-start}
+.foot-links{display:flex;flex-wrap:wrap;gap:18px;font-size:14px}
+.foot-links a{color:#fff;text-decoration:none}
+.foot-links a:hover{text-decoration:underline}
+.foot-note{font-size:12.5px;margin-top:22px;padding-top:18px;border-top:1px solid rgba(255,255,255,.16);max-width:80ch;color:#C7DBCF}
