@@ -442,6 +442,10 @@ footer a{color:#fff}
           <div class="tl" id="timeline">
             <div class="tl-item" style="color:var(--muted)">Score an address and the individual public records appear here, newest first.</div>
           </div>
+
+          <div class="divide"></div>
+          <button class="btn btn-primary btn-block" id="dlPdf" disabled>Download branded PDF report</button>
+          <p class="status" id="dlNote" style="margin-top:8px">Score an address to enable the branded PDF.</p>
         </div>
       </div>
     </div>
@@ -1247,6 +1251,149 @@ function renderSnapshot(snap){
   $("tlCount").textContent = snap.timeline.length + (snap.timeline.length === 1 ? " record" : " records");
   $("status").textContent = hasIndex ? "Report generated."
     : (snap.status === "nocoverage" ? "Outside live-data cities." : "Live feeds unavailable.");
+
+  var dl = $("dlPdf"), note = $("dlNote");
+  if (snap.status === "live"){
+    dl.disabled = false;
+    note.textContent = "Branded PDF ready — download and share.";
+  } else {
+    dl.disabled = true;
+    note.textContent = snap.status === "nocoverage"
+      ? "PDF reports are available for covered cities."
+      : "Live feeds unavailable — try again shortly.";
+  }
+}
+
+/* =====================================================================
+   BRANDED PDF REPORT — the paid artifact.
+   Drawn programmatically with jsPDF from the current live snapshot, so it is a
+   clean designed document, not a screenshot. requestReport() is the single seam
+   where the Stripe payment check will wrap the download once checkout is live.
+   ===================================================================== */
+var PDF_JS = [
+  "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+  "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"
+];
+function loadPdfLib(i){
+  i = i || 0;
+  return new Promise(function(resolve, reject){
+    if (window.jspdf && window.jspdf.jsPDF) return resolve();
+    if (i >= PDF_JS.length) return reject(new Error("no pdf cdn"));
+    var s = document.createElement("script");
+    s.src = PDF_JS[i];
+    s.onload = function(){ (window.jspdf && window.jspdf.jsPDF) ? resolve() : loadPdfLib(i + 1).then(resolve, reject); };
+    s.onerror = function(){ loadPdfLib(i + 1).then(resolve, reject); };
+    document.head.appendChild(s);
+  });
+}
+
+/* PAYMENT GATE lives here. Today it downloads directly so the artifact can be
+   reviewed; when Stripe Checkout is connected, replace the direct call with a
+   checkout flow that runs generateReportPDF() only after payment succeeds. */
+async function requestReport(){
+  var snap = state.snapshot;
+  if (!snap || snap.status !== "live"){ toast("Score an address in a covered city first."); return; }
+  var btn = $("dlPdf"), prev = btn.textContent;
+  btn.disabled = true; btn.textContent = "Preparing PDF…";
+  try {
+    await loadPdfLib();
+    generateReportPDF(snap);
+  } catch(e){
+    toast("Could not build the PDF just now. Please try again.");
+  } finally {
+    btn.disabled = false; btn.textContent = prev;
+  }
+}
+
+function generateReportPDF(snap){
+  var doc = new window.jspdf.jsPDF({ unit:"pt", format:"letter" });
+  var W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 48;
+  var green = [5,96,58], ink = [22,33,28], muted = [92,107,98], line = [215,221,214],
+      amber = [184,130,10], red = [179,36,28];
+  function bandColor(v){ return v >= 76 ? green : (v >= 51 ? amber : red); }
+
+  var label = state.label || ("Pinned location " + state.lat.toFixed(4) + ", " + state.lng.toFixed(4));
+  var liveCount = (snap.liveDomains || []).length, total = snap.domainsTotal || DOMAINS.length;
+  var today = new Date().toISOString().slice(0,10);
+  var hasIndex = typeof snap.index === "number";
+
+  // header banner
+  doc.setFillColor(green[0],green[1],green[2]); doc.rect(0, 0, W, 92, "F");
+  doc.setFillColor(255,255,255); doc.roundedRect(M, 26, 40, 40, 6, 6, "F");
+  doc.setTextColor(green[0],green[1],green[2]); doc.setFont("helvetica","bold"); doc.setFontSize(22);
+  doc.text("N", M + 20, 54, { align:"center" });
+  doc.setTextColor(255,255,255); doc.setFontSize(18); doc.text("Agent Neighbor", M + 56, 45);
+  doc.setFont("helvetica","normal"); doc.setFontSize(10.5); doc.text("STREET CONTEXT REPORT", M + 56, 62);
+  doc.setFontSize(9); doc.text(today, W - M, 45, { align:"right" });
+
+  var y = 126;
+  doc.setTextColor(ink[0],ink[1],ink[2]); doc.setFont("helvetica","bold"); doc.setFontSize(15);
+  var labelLines = doc.splitTextToSize(label, W - M*2);
+  doc.text(labelLines, M, y); y += labelLines.length * 18 + 4;
+  doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(muted[0],muted[1],muted[2]);
+  doc.text("Live public records · " + (snap.cityName || "covered city") + " · " + liveCount + " of " + total + " domains scored", M, y);
+  y += 22;
+
+  // score block
+  doc.setDrawColor(line[0],line[1],line[2]); doc.setFillColor(246,248,244);
+  doc.roundedRect(M, y, W - M*2, 92, 8, 8, "FD");
+  doc.setTextColor(muted[0],muted[1],muted[2]); doc.setFont("helvetica","normal"); doc.setFontSize(9);
+  doc.text("STREET CONTEXT INDEX", M + 24, y + 22);
+  doc.setTextColor(green[0],green[1],green[2]); doc.setFont("helvetica","bold"); doc.setFontSize(44);
+  doc.text(hasIndex ? String(snap.index) : "—", M + 24, y + 66);
+  var vx = M + 150, gw = W - vx - M - 20;
+  doc.setTextColor(ink[0],ink[1],ink[2]); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+  doc.text(doc.splitTextToSize(hasIndex ? verdictFor(snap.index) : "Partial data", gw), vx, y + 36);
+  var gy = y + 60;
+  doc.setFillColor(225,228,223); doc.roundedRect(vx, gy, gw, 6, 3, 3, "F");
+  if (hasIndex){ doc.setFillColor(green[0],green[1],green[2]); doc.circle(vx + gw * clamp(snap.index,0,100)/100, gy + 3, 5, "F"); }
+  doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(muted[0],muted[1],muted[2]);
+  doc.text("0", vx, gy + 20); doc.text("50", vx + gw/2, gy + 20, {align:"center"}); doc.text("100", vx + gw, gy + 20, {align:"right"});
+  y += 92 + 28;
+
+  // domains (2 columns)
+  doc.setTextColor(green[0],green[1],green[2]); doc.setFont("helvetica","bold"); doc.setFontSize(9);
+  doc.text("SIX DOMAINS", M, y); y += 16;
+  var colW = (W - M*2) / 2, rowY = y;
+  DOMAINS.forEach(function(d, i){
+    if (i % 2 === 0 && i > 0) rowY += 26;
+    var cx = M + (i % 2) * colW;
+    var v = snap.scores[d.key], isNum = typeof v === "number", c = isNum ? bandColor(v) : muted;
+    doc.setFillColor(c[0],c[1],c[2]); doc.circle(cx + 4, rowY - 3, 3, "F");
+    doc.setTextColor(ink[0],ink[1],ink[2]); doc.setFont("helvetica","bold"); doc.setFontSize(10);
+    doc.text(d.name, cx + 14, rowY);
+    doc.setFont("helvetica","normal"); doc.setTextColor(muted[0],muted[1],muted[2]);
+    doc.text(isNum ? (v + "/100") : "Not yet available", cx + colW - 24, rowY, { align:"right" });
+  });
+  y = rowY + 32;
+
+  // evidence records (paginated)
+  function footer(){
+    doc.setDrawColor(line[0],line[1],line[2]); doc.line(M, H - 56, W - M, H - 56);
+    doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(muted[0],muted[1],muted[2]);
+    doc.text(doc.splitTextToSize("Built from public municipal records for informational purposes only — not an appraisal, inspection, or safety guarantee. Verify anything that matters with the original source. agentneighbor.com", W - M*2), M, H - 44);
+  }
+  doc.setTextColor(green[0],green[1],green[2]); doc.setFont("helvetica","bold"); doc.setFontSize(9);
+  doc.text("EVIDENCE — PUBLIC RECORDS (" + snap.timeline.length + ")", M, y); y += 16;
+  if (!snap.timeline.length){
+    doc.setFont("helvetica","normal"); doc.setTextColor(muted[0],muted[1],muted[2]); doc.setFontSize(10);
+    doc.text("No public records filed on this segment in the last twelve months.", M, y);
+  } else {
+    snap.timeline.forEach(function(r){
+      if (y > H - 96){ footer(); doc.addPage(); y = M + 8; }
+      doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(ink[0],ink[1],ink[2]);
+      doc.text(String(r.date) + "   ·   " + String(r.category), M, y); y += 13;
+      doc.setFont("helvetica","normal"); doc.setFontSize(9.5);
+      var lines = doc.splitTextToSize(r.summary || "(no description)", W - M*2);
+      doc.text(lines, M, y); y += lines.length * 12;
+      doc.setFontSize(8); doc.setTextColor(muted[0],muted[1],muted[2]);
+      doc.text("Source: " + String(r.source), M, y); y += 16;
+    });
+  }
+  footer();
+
+  var safe = label.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "report";
+  doc.save("AgentNeighbor-" + safe + ".pdf");
 }
 
 function openDomain(key){
@@ -1488,6 +1635,7 @@ $("go").addEventListener("click", function(){ run({ query: $("addr").value }); }
 $("addr").addEventListener("keydown", function(e){
   if (e.key === "Enter"){ e.preventDefault(); run({ query: $("addr").value }); }
 });
+$("dlPdf").addEventListener("click", requestReport);
 $("pin").addEventListener("click", function(){
   if (!state.mapReady){ toast("The map is not available, type an address instead."); return; }
   var c = map.getCenter();
