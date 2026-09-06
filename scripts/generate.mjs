@@ -140,6 +140,16 @@ const GUIDES = [
     title: "How to research a neighborhood before buying",
     blurb: "A step-by-step guide to reading a block's public record — 311, violations, permits and more — before you make an offer.",
   },
+  {
+    slug: "how-to-check-building-permits-on-a-property",
+    title: "How to check building permits on a property",
+    blurb: "Find out what's been built, renovated or demolished at an address — and how to spot unpermitted work — using public permit data.",
+  },
+  {
+    slug: "questions-to-ask-before-buying-a-house",
+    title: "Questions to ask before buying a house",
+    blurb: "The questions that reveal what a listing won't — about the block, the building's history, and what the public record already shows.",
+  },
 ];
 
 // ---------------------------------------------------------------------
