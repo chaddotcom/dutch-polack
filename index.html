@@ -261,14 +261,6 @@ section{scroll-margin-top:82px}
 .faq details[open] summary::after{content:"\2212"}
 .faq p{color:var(--muted);font-size:15px;padding:0 0 16px}
 
-/* ---------- signup ---------- */
-.signup{background:var(--sign);border-radius:18px;padding:12px}
-.signup-in{border:3px solid #fff;border-radius:11px;padding:30px;color:#fff}
-.signup h2{font-size:clamp(24px,3.2vw,32px);font-weight:900;letter-spacing:-.03em;line-height:1.1;margin-bottom:8px}
-.signup p{color:#DFF0E6;max-width:52ch}
-.signup .field input{border-color:transparent}
-.signup .fineprint{font-family:var(--mono);font-size:11px;color:#A9D6BE;letter-spacing:.04em}
-
 /* ---------- footer ---------- */
 footer{background:var(--sign-deep);color:#C7DED2;padding:36px 0 30px;margin-top:56px}
 footer a{color:#fff}
@@ -316,7 +308,7 @@ footer a{color:#fff}
   <div class="shell top-in">
     <a class="brand" href="#top">
       <span class="mark"><span>N</span></span>
-      <span><b>Agent Neighbor</b><small>Early access</small></span>
+      <span><b>Agent Neighbor</b><small>Street reports</small></span>
     </a>
     <nav class="nav">
       <a class="hide-sm" href="#how">How it works</a>
@@ -373,7 +365,7 @@ footer a{color:#fff}
         <div class="card">
           <div class="notice">
             <b>Live public records only.</b>
-            <span>Across the cities we cover (Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas, San Francisco, Kansas City and New Orleans), the civic and development scores are pulled straight from the cities' open-data APIs in your browser, and the environment score from FEMA's national flood layer, with no account and no database of ours. Any domain or location without a live feed yet is marked "Not yet available" — nothing is modeled or estimated.</span>
+            <span>Across the cities we cover (Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas, San Francisco, Kansas City and New Orleans), the civic and development scores are pulled straight from the cities' open-data APIs in your browser, and the environment score from FEMA's national flood layer, with no account and no database of ours. Only signals with live records are shown — nothing is modeled or estimated, and a location outside our covered cities is clearly labeled.</span>
           </div>
 
           <div class="field">
@@ -428,10 +420,11 @@ footer a{color:#fff}
           <div class="divide"></div>
 
           <div class="rowsplit" style="margin-bottom:10px">
-            <span class="eyebrow">Six domains</span>
-            <span class="status">Tap any domain for its records</span>
+            <span class="eyebrow" id="domainsLabel">Live signals</span>
+            <span class="status" id="domainsHint">Tap any signal for its records</span>
           </div>
           <div class="domains" id="domains"></div>
+          <p class="status" id="domainsEmpty" style="margin-top:2px">Score an address to see its live signals.</p>
 
           <div class="divide"></div>
 
@@ -507,7 +500,7 @@ footer a{color:#fff}
             <li>Shareable PDF for your agent</li>
             <li>Data refreshed at purchase</li>
           </ul>
-          <div class="foot"><a class="btn btn-onsign btn-block" href="#waitlist">Get a Street Report</a></div>
+          <div class="foot"><a class="btn btn-onsign btn-block" href="#lookup">Score an address</a></div>
         </div>
 
         <div class="price">
@@ -520,7 +513,7 @@ footer a{color:#fff}
             <li>Compare addresses side by side</li>
             <li>Full record export</li>
           </ul>
-          <div class="foot"><a class="btn btn-ghost btn-block" href="#waitlist">Join the Pro list</a></div>
+          <div class="foot"><a class="btn btn-ghost btn-block" href="#lookup">Score an address</a></div>
         </div>
 
         <div class="price">
@@ -533,7 +526,7 @@ footer a{color:#fff}
             <li>Bulk address exports</li>
             <li>Shared team workspace</li>
           </ul>
-          <div class="foot"><a class="btn btn-ghost btn-block" href="#waitlist">Talk to us</a></div>
+          <div class="foot"><a class="btn btn-ghost btn-block" href="mailto:hello@agentneighbor.com?subject=Agent%20and%20Team%20plan">Talk to us</a></div>
         </div>
 
         <div class="price">
@@ -546,7 +539,7 @@ footer a{color:#fff}
             <li>Coverage by market</li>
             <li>Licensing and support terms</li>
           </ul>
-          <div class="foot"><a class="btn btn-ghost btn-block" href="#waitlist">Request terms</a></div>
+          <div class="foot"><a class="btn btn-ghost btn-block" href="mailto:hello@agentneighbor.com?subject=Enterprise%20terms">Request terms</a></div>
         </div>
       </div>
 
@@ -572,11 +565,11 @@ footer a{color:#fff}
         </details>
         <details>
           <summary>Which cities work right now?</summary>
-          <p>Twelve cities are wired to live public APIs today: Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas, San Francisco, Kansas City and New Orleans. Each publishes coordinate-tagged civic data through free, keyless public feeds that your browser reads directly. Anywhere outside a covered city, or any domain without a live feed yet, is marked "Not yet available" — never modeled or estimated.</p>
+          <p>Twelve cities are wired to live public APIs today: Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas, San Francisco, Kansas City and New Orleans. Each publishes coordinate-tagged civic data through free, keyless public feeds that your browser reads directly. A report shows only the signals with live records behind them; a location outside a covered city is clearly labeled — nothing is ever modeled or estimated.</p>
         </details>
         <details>
           <summary>What does the score actually mean?</summary>
-          <p>The index runs 0 to 100, where higher means a quieter civic record. It is a weighted roll-up of the domains we currently have live records for — a partial index while the remaining domains are still being wired in — and it is a starting point for questions rather than a verdict. Any domain without a live feed is marked "not yet available" rather than guessed, so the score is never padded with estimates.</p>
+          <p>The index runs 0 to 100, where higher means a quieter civic record. It is a weighted roll-up of the domains we currently have live records for — a partial index while the remaining domains are still being wired in — and it is a starting point for questions rather than a verdict. Only domains with live records are shown and counted, so the score is never padded with estimates.</p>
         </details>
         <details>
           <summary>How current is it?</summary>
@@ -586,24 +579,6 @@ footer a{color:#fff}
           <summary>Can I use these reports with clients?</summary>
           <p>Yes. The Agent and Team plan produces co-branded reports built entirely from public records with sources attached, which is what makes them safe to hand to a buyer.</p>
         </details>
-      </div>
-    </div>
-  </section>
-
-  <!-- ================= WAITLIST ================= -->
-  <section id="waitlist" class="band">
-    <div class="shell">
-      <div class="signup">
-        <div class="signup-in">
-          <span class="eyebrow on-sign">Early access</span>
-          <h2>Get in before the first cities go live.</h2>
-          <p>Leave an email and we will tell you the day your city has real records behind it. No newsletter, no drip sequence, just that.</p>
-          <div class="field" style="max-width:520px">
-            <input id="email" type="email" autocomplete="email" placeholder="you@example.com" aria-label="Email address">
-            <button class="btn btn-onsign" id="join">Join the list</button>
-          </div>
-          <span class="fineprint" id="joinNote">One email when your city is ready. Unsubscribe in one click.</span>
-        </div>
       </div>
     </div>
   </section>
@@ -628,7 +603,7 @@ footer a{color:#fff}
       </div>
     </div>
     <p class="foot-note">
-      Agent Neighbor is in early access. Scores are built from public municipal records and are provided for informational purposes only. They are not an appraisal, an inspection, a safety guarantee, or advice about people. Always verify anything that matters with the original source and your own professionals.
+      Scores are built from public municipal records and are provided for informational purposes only. They are not an appraisal, an inspection, a safety guarantee, or advice about people. Always verify anything that matters with the original source and your own professionals.
     </p>
   </div>
 </footer>
@@ -688,8 +663,8 @@ footer a{color:#fff}
       "mainEntity":[
         {"@type":"Question","name":"Where does the data come from?","acceptedAnswer":{"@type":"Answer","text":"Municipal open data programs published by the cities themselves, including 311 requests, code violations and building permits. Every record carries its date and source."}},
         {"@type":"Question","name":"Is this about my future neighbors?","acceptedAnswer":{"@type":"Answer","text":"No. Agent Neighbor scores civic activity at a place. It does not profile residents, use demographics, or surface information about individuals."}},
-        {"@type":"Question","name":"Which cities work right now?","acceptedAnswer":{"@type":"Answer","text":"Twelve cities are wired to live public APIs: Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas, San Francisco, Kansas City and New Orleans. Uncovered areas and domains without a live feed are marked not yet available, never modeled."}},
-        {"@type":"Question","name":"What does the score actually mean?","acceptedAnswer":{"@type":"Answer","text":"The Street Context Index runs 0 to 100, where higher means a quieter civic record. It is a weighted roll-up of the domains with live records — a partial index while the rest are wired in — and a starting point for questions rather than a verdict. Domains without a live feed are marked not yet available, never modeled."}}
+        {"@type":"Question","name":"Which cities work right now?","acceptedAnswer":{"@type":"Answer","text":"Twelve cities are wired to live public APIs: Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas, San Francisco, Kansas City and New Orleans. A report shows only the signals with live records behind them; uncovered areas are clearly labeled and nothing is modeled."}},
+        {"@type":"Question","name":"What does the score actually mean?","acceptedAnswer":{"@type":"Answer","text":"The Street Context Index runs 0 to 100, where higher means a quieter civic record. It is a weighted roll-up of the domains with live records — a partial index while the rest are wired in — and a starting point for questions rather than a verdict. Only domains with live records are shown and counted, never modeled."}}
       ]
     }
   ]
@@ -713,8 +688,7 @@ var CONFIG = {
   RADIUS_M: 250,
   MONTHS: 12,
   MAX_RECORDS: 200,                 // cap per dataset request
-  CONTACT_EMAIL: "hello@agentneighbor.com",
-  WAITLIST_ENDPOINT: ""             // optional POST url, e.g. a Formspree endpoint
+  CONTACT_EMAIL: "hello@agentneighbor.com"
 };
 
 /* Covered cities. Each declares a bounding box for detection and the public
@@ -1169,6 +1143,8 @@ function renderDomainCards(){
              '<div class="ds" data-score="' + d.key + '">n/a</div>' +
            '</button>';
   }).join("");
+  // Domains are hidden until a snapshot marks them active (a live signal).
+  Array.prototype.forEach.call(wrap.querySelectorAll(".domain"), function(b){ b.hidden = true; });
   wrap.addEventListener("click", function(e){
     var btn = e.target.closest(".domain");
     if (btn) openDomain(btn.getAttribute("data-key"));
@@ -1223,13 +1199,29 @@ function renderSnapshot(snap){
     cov.className = "pill mid";
   }
 
+  // Only show a domain when it has an active signal (a real score); hide the rest.
+  var shown = 0;
   DOMAINS.forEach(function(d){
-    var el = document.querySelector('[data-score="' + d.key + '"]');
+    var scoreEl = document.querySelector('[data-score="' + d.key + '"]');
+    var card = document.querySelector('.domain[data-key="' + d.key + '"]');
     var v = snap.scores[d.key];
     var isNum = typeof v === "number";
-    el.textContent = isNum ? v : "n/a";
-    el.className = "ds " + (isNum ? band(v) : "na");
+    scoreEl.textContent = isNum ? v : "n/a";
+    scoreEl.className = "ds " + (isNum ? band(v) : "na");
+    if (card) card.hidden = !isNum;
+    if (isNum) shown++;
   });
+  $("domainsLabel").textContent = shown === 1 ? "1 live signal" : shown + " live signals";
+  $("domainsHint").textContent = shown ? "Tap any signal for its records" : "";
+  var empty = $("domainsEmpty");
+  empty.hidden = shown > 0;
+  if (!shown){
+    empty.textContent = snap.status === "live"
+      ? "No live signals on this segment yet."
+      : (snap.status === "nocoverage"
+          ? "No live coverage for this location yet."
+          : "Live feeds are unavailable right now.");
+  }
 
   var tl = $("timeline");
   if (!snap.timeline.length){
@@ -1671,25 +1663,6 @@ document.addEventListener("keydown", function(e){ if (e.key === "Escape") closeM
 $("contactLink").addEventListener("click", function(e){
   e.preventDefault();
   window.location.href = "mailto:" + CONFIG.CONTACT_EMAIL;
-});
-
-$("join").addEventListener("click", async function(){
-  var v = $("email").value.trim();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)){ toast("That email does not look right."); return; }
-  if (CONFIG.WAITLIST_ENDPOINT){
-    try {
-      await fetch(CONFIG.WAITLIST_ENDPOINT, {
-        method:"POST", headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ email: v, source: "site" })
-      });
-    } catch(e){}
-  } else {
-    window.location.href = "mailto:" + CONFIG.CONTACT_EMAIL +
-      "?subject=Early%20access&body=" + encodeURIComponent("Please add " + v + " to the list.");
-  }
-  $("email").value = "";
-  $("joinNote").textContent = "You are on the list. We will write once, when your city is ready.";
-  toast("Added.");
 });
 
 function mapUnavailable(){
