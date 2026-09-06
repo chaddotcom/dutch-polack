@@ -926,16 +926,22 @@ function collect(raw, datasets, label, pick){
   return { records: recs, live: Object.keys(live) };
 }
 
-/* Socrata (SoQL) bounding-box fetcher, driven by a per-city dataset config. */
+/* Socrata (SoQL) fetcher, driven by a per-city dataset config.
+   Geo filter: a dataset with a `point` (Socrata Point/Location column) uses
+   within_circle(), which works even when the flat latitude/longitude columns
+   are stored as text. Otherwise it falls back to a numeric bounding box on the
+   d.lat / d.lng columns (fine when those are true numbers). */
 async function socrataFetch(host, datasets, lat, lng){
   var b = bbox(lat, lng), since = isoMonthsAgo(CONFIG.MONTHS), N = CONFIG.MAX_RECORDS;
   var raw = await Promise.all(datasets.map(function(d){
-    var where = d.date + " > '" + since + "' AND " +
-      d.lat + " between " + b.latMin + " and " + b.latMax + " AND " +
-      d.lng + " between " + b.lngMin + " and " + b.lngMax;
+    var geo = d.point
+      ? "within_circle(" + d.point + ", " + lat + ", " + lng + ", " + CONFIG.RADIUS_M + ")"
+      : (d.lat + " between " + b.latMin + " and " + b.latMax + " AND " +
+         d.lng + " between " + b.lngMin + " and " + b.lngMax);
     return socrata(host, d.id, {
-      "$select": d.date + "," + d.text + "," + d.lat + "," + d.lng,
-      "$where": where, "$order": d.date + " DESC", "$limit": N
+      "$select": d.date + "," + d.text,
+      "$where": d.date + " > '" + since + "' AND " + geo,
+      "$order": d.date + " DESC", "$limit": N
     });
   }));
   return collect(raw, datasets, host, function(row, d){ return { date: row[d.date], text: row[d.text] }; });
@@ -1037,11 +1043,13 @@ var DC_DATASETS = [
    Column names are verified against each dataset's published schema.
    (Cincinnati's portal now gates its API behind login — 403 "must be logged in"
    — so it cannot be read keyless from the browser and is not covered.) */
+/* KC and New Orleans store latitude/longitude as TEXT, so we filter on their
+   Socrata Point column via within_circle() instead of a numeric bounding box. */
 var KC_DATASETS = [
-  { id:"d4px-6rwg", date:"open_date_time", text:"issue_type", lat:"latitude", lng:"longitude", cat:"auto", source:"Kansas City 311", domain:"civic", fallback:"311 reported issue" }
+  { id:"d4px-6rwg", date:"open_date_time", text:"issue_type", point:"lat_long", cat:"auto", source:"Kansas City 311", domain:"civic", fallback:"311 reported issue" }
 ];
 var NOLA_DATASETS = [
-  { id:"2jgv-pqrq", date:"date_created", text:"request_type", lat:"latitude", lng:"longitude", cat:"auto", source:"New Orleans 311", domain:"civic", fallback:"311 call" }
+  { id:"2jgv-pqrq", date:"date_created", text:"request_type", point:"geocoded_column", cat:"auto", source:"New Orleans 311", domain:"civic", fallback:"311 call" }
 ];
 
 function fetchNewYork(lat, lng){      return socrataFetch("data.cityofnewyork.us", NYC_DATASETS, lat, lng); }
