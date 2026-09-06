@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "gen": "node scripts/generate.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

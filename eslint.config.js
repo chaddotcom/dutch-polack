@@ -7,4 +7,11 @@ export default tseslint.config(
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    // Node build scripts (e.g. the static page generator) use Node globals.
+    files: ["scripts/**/*.{js,mjs}"],
+    languageOptions: {
+      globals: { console: "readonly", process: "readonly", URL: "readonly" },
+    },
+  },
 );
