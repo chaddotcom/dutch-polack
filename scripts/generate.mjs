@@ -115,15 +115,7 @@ const CITIES = [
     ],
     neighborhoods: "Capitol Hill, Shaw, Georgetown, Petworth and beyond",
   },
-  // --- Cities added in Phase 2 (Socrata; dataset ids confirmed, columns pending
-  //     an in-browser check — see the note in index.html's data layer). ---
-  {
-    slug: "cincinnati", name: "Cincinnati", state: "OH", portal: "the Cincinnati open data portal (Socrata)",
-    sources: [
-      { title: "311 service requests", desc: "Cincinnati's non-emergency service requests logged near the block.", src: "Cincinnati 311" },
-    ],
-    neighborhoods: "Over-the-Rhine, Hyde Park, Clifton, Northside and beyond",
-  },
+  // --- Cities added in Phase 2 (Socrata, keyless; column names verified). ---
   {
     slug: "kansas-city", name: "Kansas City", state: "MO", portal: "Open Data KC (Socrata)",
     sources: [
