@@ -1026,10 +1026,13 @@ var AUS_DATASETS = [
   { id:"3syk-w9eu", date:"issued_date",   text:"permit_type_desc",     lat:"latitude", lng:"longitude", cat:"Permit", source:"Austin permits", domain:"permits", fallback:"Construction permit" }
 ];
 var SEA_DATASETS = [
-  { id:"d6dz-jhfd", date:"created_date",  text:"service_request_type", lat:"latitude", lng:"longitude", cat:"auto", source:"Seattle CSR", domain:"civic", fallback:"Service request" }
+  // Seattle "Customer Service Requests" (Find It Fix It). Real columns verified
+  // via live API; flat lat/lng are text, so filter on the latitude_longitude Point.
+  { id:"5ngg-rpne", date:"createddate", text:"webintakeservicerequests", point:"latitude_longitude", cat:"auto", source:"Seattle CSR", domain:"civic", fallback:"Service request" }
 ];
 var DAL_DATASETS = [
-  { id:"7vgc-a9tp", date:"created_date",  text:"service_request_type", lat:"latitude", lng:"longitude", cat:"auto", source:"Dallas 311", domain:"civic", fallback:"311 request" }
+  // Dallas "311 Service Requests, 2020–present". lat_location is a Location column.
+  { id:"d7e7-envw", date:"created_date", text:"service_request_type", point:"lat_location", cat:"auto", source:"Dallas 311", domain:"civic", fallback:"311 request" }
 ];
 var SF_DATASETS = [
   // lat/long are text; filter on the point_geom Point column (verified via live API).
