@@ -1017,10 +1017,12 @@ var CHI_DATASETS = [
   { id:"ydr8-5enu", date:"issue_date",    text:"permit_type",          lat:"latitude", lng:"longitude", cat:"Permit", source:"Chicago Permits",   domain:"permits", fallback:"Building permit" }
 ];
 var LA_DATASETS = [
-  { id:"b7dx-7gc3", date:"createddate",   text:"requesttype",          lat:"latitude", lng:"longitude", cat:"auto", source:"LA 311", domain:"civic", fallback:"311 request" }
+  // lat/lng are text; filter on the Point column instead (verified via live API).
+  { id:"b7dx-7gc3", date:"createddate",   text:"requesttype",          point:"location", cat:"auto", source:"LA 311", domain:"civic", fallback:"311 request" }
 ];
 var AUS_DATASETS = [
-  { id:"xwdj-i9he", date:"created_date",  text:"sr_type_desc",         lat:"latitude", lng:"longitude", cat:"auto",   source:"Austin 311",     domain:"civic",   fallback:"311 request" },
+  // Real columns are sr_*-prefixed with an sr_location_lat_long Point (verified).
+  { id:"xwdj-i9he", date:"sr_created_date", text:"sr_type_desc",       point:"sr_location_lat_long", cat:"auto",   source:"Austin 311",     domain:"civic",   fallback:"311 request" },
   { id:"3syk-w9eu", date:"issued_date",   text:"permit_type_desc",     lat:"latitude", lng:"longitude", cat:"Permit", source:"Austin permits", domain:"permits", fallback:"Construction permit" }
 ];
 var SEA_DATASETS = [
@@ -1030,7 +1032,8 @@ var DAL_DATASETS = [
   { id:"7vgc-a9tp", date:"created_date",  text:"service_request_type", lat:"latitude", lng:"longitude", cat:"auto", source:"Dallas 311", domain:"civic", fallback:"311 request" }
 ];
 var SF_DATASETS = [
-  { id:"vw6y-z8j6", date:"requested_datetime", text:"service_name",    lat:"lat",      lng:"long",      cat:"auto", source:"SF 311", domain:"civic", fallback:"311 case" }
+  // lat/long are text; filter on the point_geom Point column (verified via live API).
+  { id:"vw6y-z8j6", date:"requested_datetime", text:"service_name",    point:"point_geom", cat:"auto", source:"SF 311", domain:"civic", fallback:"311 case" }
 ];
 var BOS_DATASETS = [
   { id:"9d7c2214-4709-478a-a2e8-fb2020a5bb94", date:"open_dt", text:"type", lat:"latitude", lng:"longitude", cat:"auto", source:"Boston 311", domain:"civic", fallback:"311 case" }
