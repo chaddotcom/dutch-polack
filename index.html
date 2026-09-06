@@ -373,7 +373,7 @@ footer a{color:#fff}
         <div class="card">
           <div class="notice">
             <b>Live public records only.</b>
-            <span>Across the cities we cover (Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas, San Francisco, Cincinnati, Kansas City and New Orleans), the civic and development scores are pulled straight from the cities' open-data APIs in your browser, with no account and no database of ours. Any domain or location without a live feed yet is marked "Not yet available" — nothing is modeled or estimated.</span>
+            <span>Across the cities we cover (Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas, San Francisco, Kansas City and New Orleans), the civic and development scores are pulled straight from the cities' open-data APIs in your browser, with no account and no database of ours. Any domain or location without a live feed yet is marked "Not yet available" — nothing is modeled or estimated.</span>
           </div>
 
           <div class="field">
@@ -568,7 +568,7 @@ footer a{color:#fff}
         </details>
         <details>
           <summary>Which cities work right now?</summary>
-          <p>Thirteen cities are wired to live public APIs today: Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas, San Francisco, Cincinnati, Kansas City and New Orleans. Each publishes coordinate-tagged civic data through free, keyless public feeds that your browser reads directly. Anywhere outside a covered city, or any domain without a live feed yet, is marked "Not yet available" — never modeled or estimated.</p>
+          <p>Twelve cities are wired to live public APIs today: Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas, San Francisco, Kansas City and New Orleans. Each publishes coordinate-tagged civic data through free, keyless public feeds that your browser reads directly. Anywhere outside a covered city, or any domain without a live feed yet, is marked "Not yet available" — never modeled or estimated.</p>
         </details>
         <details>
           <summary>What does the score actually mean?</summary>
@@ -684,7 +684,7 @@ footer a{color:#fff}
       "mainEntity":[
         {"@type":"Question","name":"Where does the data come from?","acceptedAnswer":{"@type":"Answer","text":"Municipal open data programs published by the cities themselves, including 311 requests, code violations and building permits. Every record carries its date and source."}},
         {"@type":"Question","name":"Is this about my future neighbors?","acceptedAnswer":{"@type":"Answer","text":"No. Agent Neighbor scores civic activity at a place. It does not profile residents, use demographics, or surface information about individuals."}},
-        {"@type":"Question","name":"Which cities work right now?","acceptedAnswer":{"@type":"Answer","text":"Thirteen cities are wired to live public APIs: Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas, San Francisco, Cincinnati, Kansas City and New Orleans. Uncovered areas and domains without a live feed are marked not yet available, never modeled."}},
+        {"@type":"Question","name":"Which cities work right now?","acceptedAnswer":{"@type":"Answer","text":"Twelve cities are wired to live public APIs: Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas, San Francisco, Kansas City and New Orleans. Uncovered areas and domains without a live feed are marked not yet available, never modeled."}},
         {"@type":"Question","name":"What does the score actually mean?","acceptedAnswer":{"@type":"Answer","text":"The Street Context Index runs 0 to 100, where higher means a quieter civic record. It is a weighted roll-up of the domains with live records — a partial index while the rest are wired in — and a starting point for questions rather than a verdict. Domains without a live feed are marked not yet available, never modeled."}}
       ]
     }
@@ -727,7 +727,6 @@ var CITIES = [
   { key:"dc",  name:"Washington DC", bbox:{ latMin:38.79, latMax:39.00, lngMin:-77.12,  lngMax:-76.91  }, fetch:fetchWashingtonDC },
   { key:"dal", name:"Dallas",        bbox:{ latMin:32.62, latMax:33.02, lngMin:-96.99,  lngMax:-96.55  }, fetch:fetchDallas },
   { key:"sf",  name:"San Francisco", bbox:{ latMin:37.70, latMax:37.83, lngMin:-122.53, lngMax:-122.35 }, fetch:fetchSanFrancisco },
-  { key:"cin", name:"Cincinnati",    bbox:{ latMin:39.05, latMax:39.22, lngMin:-84.72,  lngMax:-84.37  }, fetch:fetchCincinnati },
   { key:"kc",  name:"Kansas City",   bbox:{ latMin:38.82, latMax:39.35, lngMin:-94.75,  lngMax:-94.38  }, fetch:fetchKansasCity },
   { key:"nola",name:"New Orleans",   bbox:{ latMin:29.86, latMax:30.18, lngMin:-90.20,  lngMax:-89.62  }, fetch:fetchNewOrleans }
 ];
@@ -988,14 +987,10 @@ var DC_DATASETS = [
   { url:"https://maps2.dcgis.dc.gov/dcgis/rest/services/DCGIS_DATA/ServiceRequests/MapServer/0",
     date:"ADDDATE", text:"SERVICECODEDESCRIPTION", cat:"auto", source:"DC 311", domain:"civic", fallback:"Service request" }
 ];
-/* Cincinnati / Kansas City / New Orleans: all Socrata (Tyler) portals with
-   keyless public feeds. Dataset ids are confirmed from the portals; the column
-   names below follow each dataset's documented schema but were NOT reachable
-   from the build sandbox, so verify in a browser and adjust if a domain shows
-   "not yet available" (a wrong column simply fails safe via `collect`). */
-var CIN_DATASETS = [
-  { id:"4cjh-bm8b", date:"requested_datetime", text:"service_name", lat:"latitude", lng:"longitude", cat:"auto", source:"Cincinnati 311", domain:"civic", fallback:"311 service request" }
-];
+/* Kansas City / New Orleans: Socrata (Tyler) portals with keyless public feeds.
+   Column names are verified against each dataset's published schema.
+   (Cincinnati's portal now gates its API behind login — 403 "must be logged in"
+   — so it cannot be read keyless from the browser and is not covered.) */
 var KC_DATASETS = [
   { id:"d4px-6rwg", date:"open_date_time", text:"issue_type", lat:"latitude", lng:"longitude", cat:"auto", source:"Kansas City 311", domain:"civic", fallback:"311 reported issue" }
 ];
@@ -1012,7 +1007,6 @@ function fetchDallas(lat, lng){       return socrataFetch("www.dallasopendata.co
 function fetchSanFrancisco(lat, lng){ return socrataFetch("data.sfgov.org",         SF_DATASETS,  lat, lng); }
 function fetchBoston(lat, lng){       return ckanFetch("data.boston.gov",           BOS_DATASETS, lat, lng); }
 function fetchWashingtonDC(lat, lng){ return arcgisFetch(DC_DATASETS, lat, lng); }
-function fetchCincinnati(lat, lng){   return socrataFetch("data.cincinnati-oh.gov", CIN_DATASETS,  lat, lng); }
 function fetchKansasCity(lat, lng){   return socrataFetch("data.kcmo.org",          KC_DATASETS,   lat, lng); }
 function fetchNewOrleans(lat, lng){   return socrataFetch("data.nola.gov",          NOLA_DATASETS, lat, lng); }
 

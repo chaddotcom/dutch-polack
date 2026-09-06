@@ -13,8 +13,7 @@ Live-data cities (civic + development domains):
 - **Philadelphia** — [OpenDataPhilly Carto SQL API](https://phl.carto.com)
   (311, L&I violations, permits) via a PostGIS radius query.
 - **New York, Chicago, Los Angeles, Austin, Seattle, Dallas, San Francisco,
-  Cincinnati, Kansas City, New Orleans** — Socrata open-data APIs via
-  bounding-box queries.
+  Kansas City, New Orleans** — Socrata open-data APIs via bounding-box queries.
 - **Boston** — [CKAN datastore](https://data.boston.gov) SQL API.
 - **Washington DC** — [ArcGIS](https://opendata.dc.gov) FeatureServer query.
 - Everywhere else, and every domain without a wired feed yet (fire, schools,
