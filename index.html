@@ -373,7 +373,7 @@ footer a{color:#fff}
         <div class="card">
           <div class="notice">
             <b>Live public records only.</b>
-            <span>Across the cities we cover (Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas, San Francisco, Kansas City and New Orleans), the civic and development scores are pulled straight from the cities' open-data APIs in your browser, with no account and no database of ours. Any domain or location without a live feed yet is marked "Not yet available" — nothing is modeled or estimated.</span>
+            <span>Across the cities we cover (Philadelphia, New York, Chicago, Los Angeles, Austin, Boston, Seattle, Washington DC, Dallas, San Francisco, Kansas City and New Orleans), the civic and development scores are pulled straight from the cities' open-data APIs in your browser, and the environment score from FEMA's national flood layer, with no account and no database of ours. Any domain or location without a live feed yet is marked "Not yet available" — nothing is modeled or estimated.</span>
           </div>
 
           <div class="field">
@@ -796,13 +796,59 @@ var state = {
 async function getSnapshot(lat, lng){
   var city = cityFor(lat, lng);
   if (!city) return emptySnapshot("nocoverage", null);   // outside covered cities: no data, no model
-  try {
-    var res = await city.fetch(lat, lng);                // { records, live }
-    return buildLiveSnapshot(city, res, lat, lng);
-  } catch(e){
+
+  // The city's civic/development feeds and the national FEMA flood layer run
+  // together. Either can fail independently; the report shows whatever responds.
+  var out = await Promise.all([
+    city.fetch(lat, lng).then(function(r){ return r; }, function(){ return null; }), // {records,live} | null
+    floodEnv(lat, lng)                                                               // {score,record} | null
+  ]);
+  var cityRes = out[0], env = out[1];
+
+  if (!cityRes && !env){
     toast("Live feeds for " + city.name + " are unavailable right now.");
     return emptySnapshot("unavailable", city.name);
   }
+
+  var records = (cityRes && cityRes.records) ? cityRes.records.slice() : [];
+  var live    = (cityRes && cityRes.live)    ? cityRes.live.slice()    : [];
+  var envScore = null;
+  if (env){
+    if (live.indexOf("env") < 0) live.push("env");
+    envScore = env.score;
+    if (env.record) records.push(env.record);
+  }
+  return buildLiveSnapshot(city, { records: records, live: live, envScore: envScore }, lat, lng);
+}
+
+/* ---------- FEMA National Flood Hazard Layer (Environment domain) ----------
+   One national, keyless ArcGIS service, queried by point, applied to every
+   covered city. A flood zone is a factual FEMA determination, not a model: we
+   map the zone to an Environment score and cite FEMA NFHL. If the service is
+   unreachable the domain is simply left "not yet available". */
+function floodScore(zone, subty){
+  if (!zone) return { score:90, label:"No FEMA special flood hazard area mapped at this point" };
+  var z = String(zone).toUpperCase(), s = String(subty || "");
+  if (z.charAt(0) === "V") return { score:28, label:"FEMA Zone " + zone + " — coastal high hazard (1% annual chance, wave action)" };
+  if (z.charAt(0) === "A") return { score:45, label:"FEMA Zone " + zone + " — high risk, 1% annual chance flood (SFHA)" };
+  if (z === "X"){
+    if (/0\.2|500|shaded|moderate/i.test(s)) return { score:72, label:"FEMA Zone X (shaded) — moderate, 0.2% annual chance flood" };
+    return { score:90, label:"FEMA Zone X — minimal flood hazard" };
+  }
+  if (z === "D") return { score:60, label:"FEMA Zone D — flood risk undetermined" };
+  return { score:70, label:"FEMA Zone " + zone };
+}
+async function floodEnv(lat, lng){
+  var base = "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28";
+  var features = await arcgisQuery(base, {
+    geometry: lng + "," + lat, geometryType:"esriGeometryPoint", inSR:"4326",
+    spatialRel:"esriSpatialRelIntersects", outFields:"FLD_ZONE,ZONE_SUBTY",
+    returnGeometry:"false", f:"json"
+  });
+  if (features === null) return null;                 // service unreachable → env not available
+  var a = (features[0] && features[0].attributes) || {};
+  var m = floodScore(a.FLD_ZONE, a.ZONE_SUBTY);
+  return { score:m.score, record: mkRecord(new Date().toISOString(), "Environment", m.label, "FEMA NFHL", "env") };
 }
 
 /* ---------- category mapping, shared across cities ---------- */
@@ -1049,6 +1095,7 @@ function buildLiveSnapshot(city, res, lat, lng){
   DOMAINS.forEach(function(d){ scores[d.key] = null; });        // default: not yet available
   if (isLive("civic"))   scores.civic   = clamp(Math.round(96 - load * 1.25), 0, 100);
   if (isLive("permits")) scores.permits = clamp(Math.round(92 - Math.max(0, counts.permits - 6) * 2.2), 30, 100);
+  if (isLive("env") && typeof res.envScore === "number") scores.env = res.envScore;
 
   var timeline = records.slice().sort(function(a, b){
     return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0);
