@@ -997,10 +997,10 @@ var CIN_DATASETS = [
   { id:"4cjh-bm8b", date:"requested_datetime", text:"service_name", lat:"latitude", lng:"longitude", cat:"auto", source:"Cincinnati 311", domain:"civic", fallback:"311 service request" }
 ];
 var KC_DATASETS = [
-  { id:"d4px-6rwg", date:"creation_date", text:"request_type", lat:"latitude", lng:"longitude", cat:"auto", source:"Kansas City 311", domain:"civic", fallback:"311 reported issue" }
+  { id:"d4px-6rwg", date:"open_date_time", text:"issue_type", lat:"latitude", lng:"longitude", cat:"auto", source:"Kansas City 311", domain:"civic", fallback:"311 reported issue" }
 ];
 var NOLA_DATASETS = [
-  { id:"2jgv-pqrq", date:"date_time_create", text:"type_of_issue", lat:"latitude", lng:"longitude", cat:"auto", source:"New Orleans 311", domain:"civic", fallback:"311 call" }
+  { id:"2jgv-pqrq", date:"date_created", text:"request_type", lat:"latitude", lng:"longitude", cat:"auto", source:"New Orleans 311", domain:"civic", fallback:"311 call" }
 ];
 
 function fetchNewYork(lat, lng){      return socrataFetch("data.cityofnewyork.us", NYC_DATASETS, lat, lng); }
